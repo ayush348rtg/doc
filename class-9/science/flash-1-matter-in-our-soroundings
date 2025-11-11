@@ -1,0 +1,114 @@
+{
+  "cards": [
+    {
+      "q": "What is meant by 'Physical Nature of Matter'?",
+      "a": "It refers to the fundamental idea that matter is not continuous but made up of extremely small particles with space, motion, and forces of attraction between them.",
+      "topics": ["Matter", "Physical Nature of Matter"]
+    },
+    {
+      "q": "Define 'Continuous Matter'.",
+      "a": "Continuous matter is the old belief that matter is uniform and unbroken throughout, like a solid block, with no spaces between its parts.",
+      "topics": ["Matter", "Continuous Matter"]
+    },
+    {
+      "q": "Define 'Particulate Matter'.",
+      "a": "Particulate matter is the modern scientific view that matter is made up of tiny, discrete particles which have space between them, are in constant motion, and attract each other.",
+      "topics": ["Matter", "Particulate Matter"]
+    },
+    {
+      "q": "What experiment shows that matter is made up of particles?",
+      "a": "Activity 1.1: Dissolving salt or sugar in water. The solute disappears but the water level does not rise, showing that solute particles occupy spaces between water particles.",
+      "topics": ["Matter", "Physical Nature of Matter", "Experiments"]
+    },
+    {
+      "q": "What experiment shows how small particles of matter are?",
+      "a": "Activity 1.2: A few crystals of potassium permanganate colour a large volume of water. Even after repeated dilution, the colour remains visible, proving particles are extremely small and divisible.",
+      "topics": ["Matter", "Physical Nature of Matter", "Experiments"]
+    },
+    {
+      "q": "Give an everyday example that supports the particulate nature of matter.",
+      "a": "The smell of Dettol or perfume spreads through air or water, showing that particles move and occupy spaces between other particles.",
+      "topics": ["Matter", "Physical Nature of Matter", "Examples"]
+    },
+    {
+      "q": "List key points that prove matter is particulate.",
+      "a": "1. Matter is made of particles. 2. Particles are extremely small. 3. Particles can occupy spaces between other particles. 4. Particles retain properties even when divided.",
+      "topics": ["Matter", "Physical Nature of Matter"]
+    },
+    {
+      "q": "What is the limitation of the 'Continuous Matter' view?",
+      "a": "It cannot explain dissolution (e.g., salt in water) or diffusion (e.g., smell spreading), which require the concept of particles and spaces between them.",
+      "topics": ["Matter", "Continuous Matter"]
+    },
+    {
+      "q": "Compare Continuous Matter and Particulate Matter.",
+      "a": "<table><tr><th>Aspect</th><th>Continuous Matter</th><th>Particulate Matter</th></tr><tr><td>Nature</td><td>Uniform, unbroken</td><td>Made of tiny particles</td></tr><tr><td>Spaces</td><td>No gaps assumed</td><td>Spaces exist between particles</td></tr><tr><td>Motion</td><td>Not considered</td><td>Particles are in constant motion</td></tr><tr><td>Evidence</td><td>Visual appearance (e.g., wood)</td><td>Experiments (salt in water, diffusion)</td></tr></table>",
+      "topics": ["Matter", "Continuous Matter", "Particulate Matter"]
+    },
+    {
+      "q": "Why does the water level not rise when salt or sugar is dissolved?",
+      "a": "Because the solute particles occupy the spaces between water particles, showing that matter has inter-particle spaces.",
+      "topics": ["Matter", "Physical Nature of Matter"]
+    },
+    {
+      "q": "What are the characteristics of particles of matter?",
+      "a": "They have space between them, they are continuously moving, and they attract each other with varying strength.",
+      "topics": ["Matter", "Characteristics of Particles"]
+    },
+    {
+      "q": "Define 'inter-particle space'.",
+      "a": "Inter-particle space refers to the gaps between particles of matter, which allow substances to mix or dissolve without increasing volume.",
+      "topics": ["Matter", "Space Between Particles"]
+    },
+    {
+      "q": "What experiment proves particles of matter have space between them?",
+      "a": "Dissolving salt or sugar in water shows that solute particles occupy spaces between water particles without raising the water level.",
+      "topics": ["Matter", "Space Between Particles", "Experiments"]
+    },
+    {
+      "q": "Define 'continuous motion of particles'.",
+      "a": "Particles of matter are in constant motion due to kinetic energy, leading to diffusion and mixing of substances.",
+      "topics": ["Matter", "Particle Motion"]
+    },
+    {
+      "q": "What is diffusion?",
+      "a": "Diffusion is the intermixing of particles of two different substances on their own, due to particle motion. It becomes faster with increase in temperature.",
+      "topics": ["Matter", "Diffusion", "Particle Motion"]
+    },
+    {
+      "q": "What activity shows particles are continuously moving?",
+      "a": "Incense stick smell spreads faster when lit, ink spreads slowly in water, and copper sulphate dissolves faster in hot water than cold. These prove particles are in motion and diffusion increases with temperature.",
+      "topics": ["Matter", "Particle Motion", "Experiments"]
+    },
+    {
+      "q": "Define 'force of attraction between particles'.",
+      "a": "Particles of matter exert forces of attraction on each other. The strength varies: strong in solids, moderate in liquids, negligible in gases.",
+      "topics": ["Matter", "Forces of Attraction"]
+    },
+    {
+      "q": "What activity shows particles attract each other?",
+      "a": "Human chain game: tightly held chains are harder to break. Iron nail is harder to break than chalk or rubber band. Water surface cannot be cut easily. These show varying strengths of attraction.",
+      "topics": ["Matter", "Forces of Attraction", "Experiments"]
+    },
+    {
+      "q": "Give examples of substances with strong, moderate, and weak forces of attraction.",
+      "a": "Strong: Iron (solid). Moderate: Water (liquid). Weak: Air (gas).",
+      "topics": ["Matter", "Forces of Attraction", "Examples"]
+    },
+    {
+      "q": "What is kinetic energy in the context of particles of matter?",
+      "a": "Kinetic energy is the energy of motion possessed by particles. As temperature rises, \\(E_k\\) increases, making particles move faster and diffusion quicker.",
+      "topics": ["Matter", "Particle Motion", "Kinetic Energy"]
+    },
+    {
+      "q": "Summarize the three main characteristics of particles of matter.",
+      "a": "1. They have space between them. 2. They are continuously moving. 3. They attract each other with varying strength.",
+      "topics": ["Matter", "Characteristics of Particles"]
+    },
+    {
+      "q": "Which terms in this section are mentioned but not fully defined?",
+      "a": "Diffusion, Kinetic energy, Cohesion.",
+      "topics": ["Matter", "Unexplained Terms"]
+    }
+  ]
+}
