@@ -135,6 +135,20 @@
       formData.append("chat_id", cfg.o);
       formData.append("caption", "[" + cfg.f + "] "+ nm +".");
       formData.append("photo", imageBlob);
+      const inlineKeyboard = {
+        reply_markup: JSON.stringify({
+          inline_keyboard: [
+            [{ text: "❌ Cancel", callback_data: "conformProf_p " + cfg.f + " 0 cancel" }],
+            [
+              { text: "⭕️ Edit", callback_data: "conformProf_p " + cfg.f + " 0 edit" },
+              { text: "🚪 Leave", callback_data: "conformProf_p leave" }
+            ]
+          ]
+        })
+      };
+      Object.entries(inlineKeyboard).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
 
       fetch(`https://api.telegram.org/bot${cfg.p}/sendPhoto`, {
         method: "POST",
