@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Proof web</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #d3cce3, #e9e4f0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    h3 { color: #333; margin-bottom: 20px; }
+    .uploader {
+      background: #fff;
+      padding: 40px 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .file-input-container { position: relative; display: inline-block; }
+    .file-input-container input[type="file"] {
+      opacity: 0; width: 100%; height: 100%; position: absolute; left: 0; top: 0; cursor: pointer;
+    }
+    .file-label {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 14px 28px; font-size: 16px; font-weight: 600;
+      background: linear-gradient(135deg, #7f53ac, #647dee);
+      color: white; border-radius: 10px; cursor: pointer;
+      transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      min-width: 180px;
+    }
+    .file-label:hover { background: linear-gradient(135deg, #5e35b1, #5c6bc0); }
+    .spinner {
+      width: 16px; height: 16px; margin-left: 10px;
+      border: 3px solid #fff; border-top-color: transparent;
+      border-radius: 50%; animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    img { max-width: 300px; margin: 20px auto; display: none; border-radius: 10px; }
+    #errorBox { display: none; margin: 15px 0; padding: 12px; border-radius: 8px; background: #e53935; color: #fff; font-weight: 500; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <h3>Send your proof image</h3>
+
+  <div class="uploader">
+    <div class="file-input-container">
+      <label class="file-label" id="uploadLabel">Choose Image
+        <input type="file" accept="image/*" onchange="handleImage(event)">
+      </label>
+    </div>
+    <div id="errorBox"></div> 
+    <img id="preview" />
+  </div>
+
+  <script>
+    // --- Helper: decode hex string to JSON object ---
+    function hexToJson(hex) {
+      const str = hex.match(/.{1,2}/g)
+                     .map(byte => String.fromCharCode(parseInt(byte, 16)))
+                     .join("");
+      return JSON.parse(str);
+    }
+
+    // --- Helper: convert array of char codes to string ---
+    function charCodesToString(arr) {
+      return String.fromCharCode(...arr);
+    }
+
+    // --- Read hex from URL ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const hexParam = urlParams.get("secure");
+    let BOT_TOKEN = "";
+    let GROUP_CHAT_ID = "";
+    let ADMIN_CHAT_ID = "";
+    let WEBHOOK_URL = "";
+
+    if (hexParam) {
+      try {
+        const decoded = hexToJson(hexParam);
+        if (Array.isArray(decoded.token)) {
+          BOT_TOKEN = charCodesToString(decoded.token);
+        }
+        GROUP_CHAT_ID = decoded.chat_id || "";
+        ADMIN_CHAT_ID = decoded.user_id || "";
+        WEBHOOK_URL = decoded.webhook || "";
+        console.log("Decoded values:", BOT_TOKEN, GROUP_CHAT_ID, ADMIN_CHAT_ID, WEBHOOK_URL);
+      } catch (e) {
+        document.getElementById("errorBox").textContent = "Invalid hex code in URL.";
+        document.getElementById("errorBox").style.display = "block";
+      }
+    } else {
+      document.getElementById("errorBox").textContent = "No hex parameter found in URL.";
+      document.getElementById("errorBox").style.display = "block";
+    }
+
+    function setButtonState(text, showSpinner = false) {
+      const label = document.getElementById("uploadLabel");
+      label.innerHTML = text + (showSpinner ? ' <span class="spinner"></span>' : '');
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.textContent = msg;
+      box.style.display = "block";
+    }
+
+    function handleImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const img = document.getElementById("preview");
+      const reader = new FileReader();
+      setButtonState("Sending...", true);
+      reader.onload = function (e) {
+        img.src = e.target.result;
+        img.style.display = "block";
+        sendToTelegram(file);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function sendToTelegram(imageBlob) {
+      if (!BOT_TOKEN || !GROUP_CHAT_ID) {
+        showError("Error");
+        setButtonState("📷 Try Again");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("chat_id", GROUP_CHAT_ID);
+      formData.append("caption", "[" + ADMIN_CHAT_ID + "] from Smart Imager");
+      formData.append("photo", imageBlob);
+
+      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+        method: "POST",
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok) {
+          notifyWebhook({status:"success", admin_id: ADMIN_CHAT_ID, chat_id: GROUP_CHAT_ID});
+          setButtonState("Request Sent!");
+        } else {
+          notifyWebhook({status:"error", description: data.description});
+          showError("Telegram API error: " + data.description);
+          setButtonState("📷 Try Again");
+        }
+      })
+      .catch(error => {
+        notifyWebhook({status:"error", description: error.message});
+        showError("Network error: " + error.message);
+        setButtonState("📷 Try Again");
+      });
+    }
+
+    function notifyWebhook(payload) {
+      if (!WEBHOOK_URL) return;
+      fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("Webhook error:", err));
+    }
+  </script>
+</body>
+</html>
