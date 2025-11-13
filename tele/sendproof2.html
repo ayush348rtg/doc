@@ -133,10 +133,10 @@
       const inlineKeyboard = {
         reply_markup: JSON.stringify({
           inline_keyboard: [
-            [{ text: "❌ Cancel", callback_data: "conformProf_p " + cfg.f + " 0 cancel" }],
+            [{ text: "❌ Cancel", callback_data: "/conformProf_p " + cfg.f + " 0 cancel" }],
             [
-              { text: "⭕️ Edit", callback_data: "conformProf_p " + cfg.f + " 0 edit" },
-              { text: "🚪 Leave", callback_data: "conformProf_p leave" }
+              { text: "⭕️ Edit", callback_data: "/conformProf_p " + cfg.f + " 0 edit" },
+              { text: "🚪 Leave", callback_data: "/conformProf_p leave" }
             ]
           ]
         })
@@ -179,7 +179,7 @@
       let seconds = 5;
       const label = document.getElementById("uploadLabel");
       const interval = setInterval(() => {
-        label.textContent = "Request Sent! [" + seconds + "]";
+        label.textContent = "Request Sent✅️ " + seconds + "";
         seconds--;
         if (seconds < 0) {
           clearInterval(interval);
