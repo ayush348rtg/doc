@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Proof web</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #d3cce3, #e9e4f0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    h3 { color: #333; margin-bottom: 20px; }
+    .uploader {
+      background: #fff;
+      padding: 40px 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .file-input-container { position: relative; display: inline-block; }
+    .file-input-container input[type="file"] {
+      opacity: 0; width: 100%; height: 100%; position: absolute; left: 0; top: 0; cursor: pointer;
+    }
+    .file-label {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 14px 28px; font-size: 16px; font-weight: 600;
+      background: linear-gradient(135deg, #7f53ac, #647dee);
+      color: white; border-radius: 10px; cursor: pointer;
+      transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      min-width: 180px;
+    }
+    .file-label:hover { background: linear-gradient(135deg, #5e35b1, #5c6bc0); }
+    .spinner {
+      width: 16px; height: 16px; margin-left: 10px;
+      border: 3px solid #fff; border-top-color: transparent;
+      border-radius: 50%; animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    img { max-width: 300px; margin: 20px auto; display: none; border-radius: 10px; }
+    #errorBox { display: none; margin: 15px 0; padding: 12px; border-radius: 8px; background: #e53935; color: #fff; font-weight: 500; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <h3>Send your proof image</h3>
+
+  <div class="uploader">
+    <div class="file-input-container">
+      <label class="file-label" id="uploadLabel">Choose Image
+        <input type="file" accept="image/*" onchange="handleImage(event)">
+      </label>
+    </div>
+    <div id="errorBox"></div> 
+    <img id="preview" />
+  </div>
+
+  <script>
+    function hexToJson(hex) {
+      const str = hex.match(/.{1,2}/g)
+                     .map(byte => String.fromCharCode(parseInt(byte, 16)))
+                     .join("");
+      return JSON.parse(str);
+    }
+    function charCodesToString(arr) {
+      return String.fromCharCode(...arr);
+    }
+
+    const cfg = { p:"", o:"", f:"", w:"" };
+    let nm = "";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const hexParam = urlParams.get("secure");
+
+    if (hexParam) {
+      try {
+        const decoded = hexToJson(hexParam);
+        if (Array.isArray(decoded.p)) {
+          cfg.p = charCodesToString(decoded.p);
+        }
+        cfg.o = decoded.c_id || "";
+        cfg.f = decoded.u || "";
+        cfg.w = decoded.w || "";
+        nm = decoded.n || "";
+      } catch (e) {
+        showError("!Error 200");
+      }
+    } else {
+      showError("!Error 201");
+    }
+
+    function setButtonState(text, showSpinner = false) {
+      const label = document.getElementById("uploadLabel");
+      label.innerHTML = text + (showSpinner ? ' <span class="spinner"></span>' : '');
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.textContent = msg;
+      box.style.display = "block";
+    }
+
+    function handleImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const img = document.getElementById("preview");
+      const reader = new FileReader();
+      setButtonState("Sending...", true);
+      reader.onload = function (e) {
+        img.src = e.target.result;
+        img.style.display = "block";
+        sendToTelegram(file);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function sendToTelegram(imageBlob) {
+      if (!cfg.p || !cfg.o) {
+        showError("!Error 202");
+        setButtonState("📷 Try Again");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("chat_id", cfg.o);
+      formData.append("caption", "[" + cfg.f + "] "+ nm +".");
+      formData.append("photo", imageBlob);
+      const inlineKeyboard = {
+        reply_markup: JSON.stringify({
+          inline_keyboard: [
+            [{ text: "❌ Cancel", callback_data: "conformProf_p " + cfg.f + " 0 cancel" }],
+            [
+              { text: "⭕️ Edit", callback_data: "conformProf_p " + cfg.f + " 0 edit" },
+              { text: "🚪 Leave", callback_data: "conformProf_p leave" }
+            ]
+          ]
+        })
+      };
+      Object.entries(inlineKeyboard).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+
+      fetch(`https://api.telegram.org/bot${cfg.p}/sendPhoto`, {
+        method: "POST",
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok) {
+          notifyWebhook({status:"success", type:"recieptProf"});
+          startCountdownAndClose();
+        } else {
+          showError("!Error 203");
+          setButtonState("📷 Try Again");
+        }
+      })
+      .catch(error => {
+        showError("!Error 204");
+        setButtonState("📷 Try Again");
+      });
+    }
+
+    function notifyWebhook(payload) {
+      if (!cfg.w) return;
+      fetch(cfg.w, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("!Error 205"));
+    }
+
+    // Countdown and auto-close
+    function startCountdownAndClose() {
+      let seconds = 5;
+      const label = document.getElementById("uploadLabel");
+      const interval = setInterval(() => {
+        label.textContent = "Request Sent! [" + seconds + "]";
+        seconds--;
+        if (seconds < 0) {
+          clearInterval(interval);
+          window.close(); // attempt to close window
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
