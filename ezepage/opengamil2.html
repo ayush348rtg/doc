@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Gmail App</title>
+  <style>
+    body {
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #f7fafc;
+      font-family: sans-serif;
+    }
+    .box {
+      padding: 20px 30px;
+      background: #fff;
+      border: 2px solid #2563eb;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-decoration: none;
+      color: #2563eb;
+      font-weight: bold;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .box:hover {
+      background: #eff6ff;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <!-- Try Gmail app deep link with recipient + subject -->
+  <a class="box"
+     href="googlegmail://co?to=Xxxxxvxxvxxx@gmail.com&subject=Hello%20from%20my%20page"
+     onclick="setTimeout(() => { window.location.href='mailto:Xxxxxvxxvxxx@gmail.com?subject=Hello%20from%20my%20page'; }, 500);">
+    Send Email to Xxxxxvxxvxxx@gmail.com
+  </a>
+</body>
+</html>
