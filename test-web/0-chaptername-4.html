@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ezee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap" rel="stylesheet">
+
+
+<style>
+.container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 190px));
+  gap: 10px;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
+  padding: 10px;
+}
+/* Force minimum 2 columns on small screens */
+@media (max-width: 480px) {
+  .container {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+/* Confirmation container */
+.conform_container {
+  position: fixed;
+  bottom: 5vh;              /* distance above the bottom edge */
+  left: 50%;
+  transform: translateX(-50%);
+  display: none; /* hidden initially */
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+}
+
+/* Button styles */
+.conform_container button {
+  background: #ffc01d;
+  color: black;
+  font-family: "Poppins", sans-serif;
+  border: none;
+  font-size: 17px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+}
+.conform_container button:hover {
+  background: #c6eace;
+}
+
+/* Spinner inside button */
+.spinner {
+  border: 2px solid black;
+  border-top: 2px solid #c6eace;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.chapter-box {
+  display: inline-block;
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  cursor: pointer;
+}
+.chapter-box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+}
+.chapter-index {
+  font-size: 15px;
+  color: #0077cc;
+  margin-bottom: 6px;
+  font-family: Poppins, sans-serif;
+}
+.chapter-name {
+  font-family: Poppins, sans-serif;
+  font-size: 17px;
+  font-weight: bold;
+  color: #333;
+  position: relative;
+  padding-left: 10px;
+}
+.chapter-name::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: red;
+}
+
+/* Locked style */
+.locked {
+  background: #f9fad2;
+}
+.lock-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  fill: dimgray;
+}
+  </style>
+</head>
+<body>
+  <section id="class11_physics_chap" class="content-section">
+    <div class="container">
+      <div class="chapter-box" data-code="formula11p1" data-index="1">
+        <div class="chapter-index">Chapter 1</div>
+        <div class="chapter-name">Physical World</div>
+      </div>
+      <div class="chapter-box" data-code="formula11p8" data-index="8">
+        <div class="chapter-index">Chapter 8</div>
+        <div class="chapter-name">Gravitation</div>
+      </div>
+      <div class="chapter-box" data-code="formula11p9" data-index="9">
+          <div class="chapter-index">Chapter 9</div>
+          <div class="chapter-name">Gravitation</div>
+        </div>
+    </div>
+  </section>
+
+  <!-- Confirmation box -->
+  <div class="conform_container" id="confirmContainer">
+    <button id="sendBtn">Unlock Chapter</button>
+  </div>
+
+<script>
+  const data = {
+    webhook: "https://api.telebotcreator.com/new-webhook?data=gAAAAABpKYYA7OUOmX8SvoFJ0ATdYV0IyMCoEZEwWESVt69fxzsJAYVU7sfxDaCbEpc8d2BvT-JgIGLqStJr6eSr0Ei2yIFJw0kNKHh0MJ-UPXNOHzA6aHXDB0PDn5apKoFdilin5SCJLfQH95zB7Ix6RTgaB41JIVMfpZ5rcE_0Yq3RWCZ5d9IsqA3KlMVP948CDs0KzYLZaxp3d35gNva71GqgQ3wQkg%3D%3D",
+    unlocked: {
+      "1764328725": [
+        "formula11p1", "formula11p2", "formula11p3",
+        "formula11p4", "formula11p5", "formula11p6", "formula11p7"
+      ]
+    }
+  };
+  
+  const lockSVG = `
+  <svg xmlns="http://www.w3.org/2000/svg" class="lock-icon" viewBox="0 0 16 16">
+    <path fill-rule="evenodd" d="M8 0a4 4 0 0 1 4 4v2.05a2.5 2.5 0 0 1 2 2.45v5a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 2 13.5v-5a2.5 2.5 0 0 1 2-2.45V4a4 4 0 0 1 4-4M4.5 7A1.5 1.5 0 0 0 3 8.5v5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 11.5 7zM8 1a3 3 0 0 0-3 3v2h6V4a3 3 0 0 0-3-3"/>
+  </svg>
+`;
+  
+  const confirmContainer = document.getElementById("confirmContainer");
+  const sendBtn = document.getElementById("sendBtn");
+  let selectedCode = null;
+  let selectedIndex = null;
+  
+  // Loop through chapters
+  document.querySelectorAll(".chapter-box").forEach(box => {
+    const code = box.getAttribute("data-code");
+    const index = box.getAttribute("data-index");
+    const unlockedCodes = data.unlocked["1764328725"];
+    
+    if (!unlockedCodes.includes(code)) {
+      // Locked chapters
+      box.classList.add("locked");
+      box.insertAdjacentHTML("beforeend", lockSVG);
+      
+      box.addEventListener("click", () => {
+        selectedCode = code;
+        selectedIndex = index;
+        sendBtn.textContent = `Unlock Chapter ${index}`;
+        confirmContainer.style.display = "flex";
+      });
+    } else {
+      // ✅ Unlocked chapters → open URL in same tab
+      box.addEventListener("click", () => {
+        window.location.href = `https://xxxxxvxxvxxx.github.io/letscode/p11notes.html?chapter=chapter${index}`;
+      });
+    }
+  });
+  
+  // Send button handler
+  sendBtn.addEventListener("click", handleSend);
+  
+  function handleSend() {
+    if (!selectedCode) return;
+    sendBtn.innerHTML = `Request sending... <span class="spinner"></span>`;
+    fetch(data.webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: selectedCode })
+      })
+      .then(() => {
+        sendBtn.textContent = "Open Bot and check your inbox.✅️";
+        sendBtn.removeEventListener("click", handleSend);
+        sendBtn.addEventListener("click", () => {
+          confirmContainer.style.display = "none";
+        }, { once: true });
+      })
+      .catch(() => {
+        sendBtn.textContent = "Error!";
+      });
+  }
+</script>
+</body>
+</html>
