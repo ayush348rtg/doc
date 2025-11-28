@@ -188,20 +188,22 @@ document.querySelectorAll(".chapter-box").forEach(box => {
 });
 
 // Send button handler
-sendBtn.addEventListener("click", () => {
+sendBtn.addEventListener("click", handleSend);
+function handleSend() {
   if (!selectedCode) return;
-
   // Show spinner
   sendBtn.innerHTML = `Request sending... <span class="spinner"></span>`;
-
   fetch(data.webhook, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code: selectedCode })
   })
   .then(() => {
+    // Change text
     sendBtn.textContent = "Open Bot and check your inbox.✅️";
-    // Next click removes button
+    // Remove the send handler so it won't fire again
+    sendBtn.removeEventListener("click", handleSend);
+    // Add a new handler just to close the container
     sendBtn.addEventListener("click", () => {
       confirmContainer.style.display = "none";
     }, { once: true });
@@ -209,7 +211,8 @@ sendBtn.addEventListener("click", () => {
   .catch(() => {
     sendBtn.textContent = "Error!";
   });
-});
+}
+
 </script>
 </body>
 </html>
