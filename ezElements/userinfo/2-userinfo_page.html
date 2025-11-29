@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ezee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap" rel="stylesheet">
+  <base href="https://ayush348rtg.github.io/e/">
+
+<style>
+.std_profile_container {
+    font-family: 'Poppins', sans-serif;
+    background-color: white;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.std_card {
+    background-color: white;
+    border-radius: 1.5rem;
+    width: 100%;
+    aspect-ratio: 12 / 8;
+    max-width: 24rem;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+    overflow: hidden;
+    position: relative;
+    border: 5px solid #2D1B4E;
+}
+
+.std_header {
+    padding: 1.5rem 1.5rem 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.std_profile_group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.std_avatar_container {
+    position: relative;
+    padding: 0.25rem;
+    border: 3px solid #4A3AFF;
+    border-radius: 50%;
+    width: 4rem;
+    height: 4rem;
+}
+
+.std_avatar_image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #FEF3C7;
+}
+
+.std_status_dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 1rem;
+    height: 1rem;
+    background-color: #10B981;
+    border: 3px solid white;
+    border-radius: 50%;
+}
+
+.std_info_text h2 {
+    color: #2D1B4E;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.std_info_text span {
+    color: #6B7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.std_menu_btn {
+    color: #9CA3AF;
+    font-size: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.std_menu_btn:hover { background-color: #F3F4F6; }
+
+.std_action_area { padding: 1rem 1.5rem; }
+
+.std_toggle_btn {
+    width: 100%;
+    background-color: #F3F0FF;
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.std_toggle_btn:hover { background-color: #EBE5FF; }
+
+.std_arrow_icon { font-size: 0.75rem; transition: transform 0.3s ease; }
+.std_arrow_icon.std_rotated { transform: rotate(180deg); }
+
+.std_social_container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    max-height: 200px;
+    opacity: 1;
+    overflow: hidden;
+}
+.std_social_container.std_collapsed { max-height: 0; opacity: 0; padding-bottom: 0; }
+
+.std_social_list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+}
+
+.std_icon_link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    border: 1px solid gray;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    cursor: pointer;
+}
+.std_icon_link span { display: flex; align-items: center; justify-content: center; }
+.std_icon_link span svg { width: 2rem; height: 2rem; fill: currentColor; }
+.std_icon_link:hover { transform: scale(1.1); }
+
+.std_mess_box {
+  display:none;
+  margin: 1rem;
+  width: 100%;
+  max-width:24rem;
+  padding:1rem;
+  border:1px solid #ccc;
+  border-radius:0.75rem;
+  background:#f9f9f9;
+  font-family:Poppins,sans-serif;
+}
+.std_text_box {
+  width:95%;
+  padding:0.5rem;
+  border-radius:0.5rem;
+  border:1px solid #aaa;
+  font-family:Poppins,sans-serif;
+}
+.std_mess_box_container{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>
+</head>
+<body>
+<section id="std_student" class="content-section">
+  <div class="std_profile_container">
+    <div class="std_card">
+      <div class="std_header">
+  <div class="std_profile_group">
+    <!-- Avatar -->
+    <div class="std_avatar_container">
+      <img src="..." alt="Profile" class="std_avatar_image">
+      <div class="std_status_dot"></div>
+    </div>
+    <div class="std_info_text">
+      <h2 id="std_profileName">Loading...</h2>
+      <span id="std_profileClass">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Menu Button -->
+  <div style="position:relative;">
+    <button class="std_menu_btn">⋮</button>
+    <!-- ID Box anchored below -->
+    <div id="std_idBox" style="
+      display:none;
+      position:absolute;
+      top:100%;   /* directly below button */
+      right:0;    /* align to right edge of button */
+      margin-top:0.25rem;
+      padding:0.3rem;
+      border:1px solid #ccc;
+      border-radius:0.5rem;
+      background:#f9f9f9;
+      font-family:Poppins,sans-serif;
+      font-size:0.775rem;
+      color:#2D1B4E;
+      font-weight:600;
+      white-space:nowrap;
+      z-index:10;
+    ">
+      <!-- ID will be injected here -->
+    </div>
+  </div>
+</div>
+
+
+      <div class="std_action_area">
+        <button id="std_toggleBtn" onclick="std_toggleContact()" class="std_toggle_btn">
+          <span>Get In Touch with Us</span>
+          <span id="std_arrowIcon" class="std_arrow_icon">▲</span>
+        </button>
+      </div>
+
+      <div id="std_socialContainer" class="std_social_container">
+        <div class="std_social_list">
+          <!-- Gmail -->
+          <a href="#" class="std_icon_link">
+            <span>
+              <svg xmlns="http://www.w3.org/2000/svg" id="std_gmail" enable-background="new 0 0 141.7 141.7" viewBox="0 0 141.7 141.7">
+    <path fill="#4285f4" d="M24.3,111.3h17.2V69.6L16.9,51.3V104C16.9,108,20.2,111.3,24.3,111.3z"></path>
+    <path fill="#34a853" d="M100.3,111.3h17.2c4.1,0,7.4-3.3,7.4-7.4V51.3l-24.5,18.4V111.3z"></path>
+    <path fill="#fbbc04" d="M100.3,37.8v31.9l24.5-18.4v-9.8c0-9.1-10.4-14.3-17.7-8.8L100.3,37.8z"></path>
+    <path fill="#ea4335" fill-rule="evenodd" d="M41.4,69.6V37.8l29.4,22.1l29.4-22.1v31.9L70.9,91.7L41.4,69.6z" clip-rule="evenodd"></path>
+    <path fill="#c5221f" d="M16.9,41.4v9.8l24.5,18.4V37.8l-6.9-5.2C27.3,27.2,16.9,32.4,16.9,41.4z"></path>
+  </svg>
+            </span>
+          </a>
+          <!-- Telegram -->
+<a href="https://t.me/Ezzeenotes" target="_blank" rel="noopener noreferrer" class="std_icon_link">
+  <span>
+    <svg xmlns="http://www.w3.org/2000/svg" id="std_telegram" viewBox="0 0 100 100">
+      <path fill="#1b92d1" d="M88.723,12.142C76.419,17.238,23.661,39.091,9.084,45.047c-9.776,3.815-4.053,7.392-4.053,7.392
+        s8.345,2.861,15.499,5.007c7.153,2.146,10.968-0.238,10.968-0.238l33.62-22.652c11.922-8.107,9.061-1.431,6.199,1.431
+        c-6.199,6.2-16.452,15.975-25.036,23.844c-3.815,3.338-1.908,6.199-0.238,7.63c6.199,5.246,23.129,15.976,24.082,16.691
+        c5.037,3.566,14.945,8.699,16.452-2.146c0,0,5.961-37.435,5.961-37.435c1.908-12.637,3.815-24.321,4.053-27.659
+        C97.307,8.804,88.723,12.142,88.723,12.142z"></path>
+    </svg>
+  </span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Message Box -->
+<div class="std_mess_box_container">
+<div class="std_mess_box" id="std_messageBox">
+  <h3 style="margin-top:0; color:#2D1B4E;">Send us a message</h3>
+  <textarea id="std_messageInput" rows="4" class="std_text_box"></textarea>
+  <button id="std_sendMessageBtn" style="margin-top:0.5rem; background:#34a853; color:white; border:none; padding:0.5rem 1rem; border-radius:0.5rem; cursor:pointer;">Send</button>
+  <p id="std_statusMsg" style="font-size:0.875rem; color:#0077cc; margin-top:0.5rem;"></p>
+</div>
+</div>
+<script>
+  const student_Data = {
+  webhook: "https://api.telebotcreator.com/new-webhook?data=gAAAAABpKYYA7OUOmX8SvoFJ0ATdYV0IyMCoEZEwWESVt69fxzsJAYVU7sfxDaCbEpc8d2BvT-JgIGLqStJr6eSr0Ei2yIFJw0kNKHh0MJ-UPXNOHzA6aHXDB0PDn5apKoFdilin5SCJLfQH95zB7Ix6RTgaB41JIVMfpZ5rcE_0Yq3RWCZ5d9IsqA3KlMVP948CDs0KzYLZaxp3d35gNva71GqgQ3wQkg%3D%3D",
+  "name": "Ayush",
+  classLevel: "Class 11",
+  gender: "male",
+  id: 1234567890
+};
+  // Populate profile info
+  document.getElementById('std_profileName').textContent = student_Data.name;
+  document.getElementById('std_profileClass').textContent = student_Data.classLevel;
+  
+  // Avatar
+  const std_avatarImg = document.querySelector('.std_avatar_image');
+  std_avatarImg.src = student_Data.gender.toLowerCase() === "female" ?
+    "file/svg-file/girl-person.svg" :
+    "file/svg-file/boy-person.svg";
+  
+  // Toggle social icons + hide message box
+  function std_toggleContact() {
+    const container = document.getElementById('std_socialContainer');
+    const arrow = document.getElementById('std_arrowIcon');
+    const msgBox = document.getElementById('std_messageBox');
+    
+    container.classList.toggle('std_collapsed');
+    arrow.classList.toggle('std_rotated');
+    
+    if (msgBox.style.display === 'block') {
+      msgBox.style.display = 'none';
+    }
+  }
+  
+  // Gmail icon click → toggle message box
+  document.querySelector('#std_gmail').parentElement.parentElement.addEventListener('click', function(e) {
+    e.preventDefault();
+    const box = document.getElementById('std_messageBox');
+    box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+  });
+  
+  // Send button handler
+  document.getElementById('std_sendMessageBtn').addEventListener('click', function() {
+    const msg = document.getElementById('std_messageInput').value.trim();
+    const status = document.getElementById('std_statusMsg');
+    
+    if (!msg) {
+      status.textContent = "Please enter a message.";
+      return;
+    }
+    
+    status.textContent = "Sending...";
+    
+    fetch(student_Data.webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      })
+      .then(() => {
+        status.textContent = "Message sent successfully ✅";
+        document.getElementById('std_messageInput').value = "";
+      })
+      .catch(() => {
+        status.textContent = "Error sending message ❌";
+      });
+  });
+  // Menu button toggle for showing/hiding ID
+document.querySelector('.std_menu_btn').addEventListener('click', function() {
+  const idBox = document.getElementById('std_idBox');
+  
+  if (idBox.style.display === 'block') {
+    idBox.style.display = 'none'; // hide if visible
+  } else {
+    idBox.textContent = "ID: " + student_Data.id; // set ID text
+    idBox.style.display = 'block'; // show if hidden
+  }
+});
+
+</script>
+</body>
+
+  </html>
