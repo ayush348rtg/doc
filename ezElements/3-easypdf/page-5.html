@@ -222,7 +222,15 @@ function hexToString(hex) {
 }
 const whereis = new URLSearchParams(window.location.search);
 const incriptedata = whereis.get("inc");
-const chapter = incriptedata ? hexToString(incriptedata);
+let chapter = 'chapter0';
+if (incriptedata) {
+  try {
+    chapter = hexToString(incriptedata);
+  } catch(e) {
+    console.error("Hex decode failed:", e);
+  }
+}
+
 const container = document.getElementById('images');
 
 if (chapters[chapter]) {
