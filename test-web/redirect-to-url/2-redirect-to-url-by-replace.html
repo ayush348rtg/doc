@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multiple Redirect Buttons</title>
+</head>
+<body>
+  <h1>Choose a destination</h1>
+  <p>Each button will redirect and replace this page in history.</p>
+
+  <!-- Button 1 -->
+  <button onclick="redirectTo('https://example.com')">
+    Go to Example.com
+  </button>
+
+  <!-- Button 2 -->
+  <button onclick="redirectTo('https://c41c.github.io')">
+    Go to My GitHub Page
+  </button>
+
+  <!-- Button 3 -->
+  <button onclick="redirectTo('https://developer.mozilla.org')">
+    Go to MDN Docs
+  </button>
+
+  <script>
+    function redirectTo(url) {
+      // Replace current page in history with the new URL
+      window.location.replace(url);
+    }
+  </script>
+</body>
+</html>
