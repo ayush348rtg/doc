@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirect with Query Data</title>
+</head>
+<body>
+  <h1>Redirect with Query Parameters</h1>
+  <p>Click a link to redirect, carrying over the query string.</p>
+
+  <!-- Link 1 -->
+  <a href="#" onclick="redirectWithQuery('https://example.com')">
+    Go to Example.com
+  </a>
+  <br><br>
+
+  <!-- Link 2 -->
+  <a href="#" onclick="redirectWithQuery('https://c41c.github.io')">
+    Go to My GitHub Page
+  </a>
+
+  <script>
+    function redirectWithQuery(baseUrl) {
+      // Get the query string from the current page (everything after ?)
+      const queryString = window.location.search; 
+      
+      // Append it to the new URL
+      const newUrl = baseUrl + queryString;
+
+      // Redirect, replacing history so Back won't return here
+      window.location.replace(newUrl);
+    }
+  </script>
+</body>
+</html>
