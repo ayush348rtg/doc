@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Info Form</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f4f9; }
+    .form-container { max-width:600px; margin:40px auto; background:white; padding:25px; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+    label { display:block; margin-top:15px; font-weight:bold; }
+    select, input { width:100%; padding:10px; margin-top:5px; border:1px solid #ccc; border-radius:5px; }
+    button { margin-top:20px; width:100%; padding:12px; background:#4E277A; color:white; border:none; border-radius:5px; font-size:16px; cursor:pointer; }
+    button:hover { background:#351757; }
+  </style>
+</head>
+<body>
+
+<div class="form-container">
+  <h2>Student Information Form</h2>
+  <form>
+    <label for="fullname">Full Name</label>
+    <input type="text" id="fullname" name="fullname" required>
+
+    <label for="dob">Date of Birth</label>
+    <input type="date" id="dob" name="dob" required>
+
+    <label for="class">Class</label>
+    <select id="class" name="class" required>
+      <option value="">Select Class</option>
+      <option value="6">Class 6</option>
+      <option value="7">Class 7</option>
+      <option value="8">Class 8</option>
+      <option value="9">Class 9</option>
+      <option value="10">Class 10</option>
+      <option value="11">Class 11</option>
+      <option value="12">Class 12</option>
+    </select>
+
+    <label for="state">State (India)</label>
+    <select id="state" name="state" required>
+      <option value="">Select State</option>
+    </select>
+
+    <button type="submit">Submit</button>
+  </form>
+</div>
+
+<script>
+  // All 28 States of India
+  const state_data = [
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal"
+  ];
+
+  const stateSelect = document.getElementById("state");
+
+  // Populate states
+  state_data.forEach(state => {
+    const opt = document.createElement("option");
+    opt.value = state;
+    opt.textContent = state;
+    stateSelect.appendChild(opt);
+  });
+</script>
+
+
+</body>
+</html>
