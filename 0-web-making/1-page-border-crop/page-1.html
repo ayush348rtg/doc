@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Border Detector</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better centering and canvas display */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #f7f7f7;
+        }
+        #outputCanvas {
+            /* Ensure the canvas scales responsively */
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-6 md:p-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            Image Border Highlighter
+        </h1>
+        <p class="text-center text-gray-600 mb-8">
+            Upload an image to detect and highlight borders of the color <code class="bg-gray-100 px-2 py-1 rounded text-red-600 font-mono">#EEEEEE</code>.
+        </p>
+
+        <!-- Input and Control Area -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-8 items-center">
+            <input type="file" id="imageInput" accept="image/*" class="w-full sm:w-1/2 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out cursor-pointer">
+            
+            <button id="processButton" 
+                    class="w-full sm:w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    disabled>
+                <span id="buttonText">Detect Borders</span>
+                <svg id="spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Canvas Display Area -->
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Processed Image:</h2>
+            <canvas id="outputCanvas" class="shadow-inner rounded-lg"></canvas>
+            <p id="messageBox" class="text-center text-sm text-red-600 mt-4 hidden p-2 bg-red-50 rounded-lg"></p>
+        </div>
+        
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const processButton = document.getElementById('processButton');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const messageBox = document.getElementById('messageBox');
+        const buttonText = document.getElementById('buttonText');
+        const spinner = document.getElementById('spinner');
+
+        // Target color #EEEEEE (RGB: 238, 238, 238)
+        const TARGET_R = 238;
+        const TARGET_G = 238;
+        const TARGET_B = 238;
+        const TOLERANCE = 10; // Allow a small variance for image compression artifacts
+
+        // Function to show/hide loading state
+        function setLoading(isLoading) {
+            processButton.disabled = isLoading || !imageInput.files.length;
+            buttonText.textContent = isLoading ? 'Processing...' : 'Detect Borders';
+            spinner.style.display = isLoading ? 'inline-block' : 'hidden';
+            if (isLoading) {
+                spinner.classList.remove('hidden');
+            } else {
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // Function to check if a pixel color is close to the target color
+        function isTargetColor(r, g, b) {
+            return (
+                Math.abs(r - TARGET_R) <= TOLERANCE &&
+                Math.abs(g - TARGET_G) <= TOLERANCE &&
+                Math.abs(b - TARGET_B) <= TOLERANCE
+            );
+        }
+
+        // Main image processing function
+        function processImage(imageData) {
+            const ctx = outputCanvas.getContext('2d');
+            const width = imageData.width;
+            const height = imageData.height;
+            const data = imageData.data;
+            const newImageData = new ImageData(width, height);
+            const newData = newImageData.data;
+
+            // Copy original image data to the new array
+            for (let i = 0; i < data.length; i++) {
+                newData[i] = data[i];
+            }
+            
+            // Function to get the index of a pixel (x, y)
+            function getIndex(x, y) {
+                if (x < 0 || x >= width || y < 0 || y >= height) {
+                    return -1; // Out of bounds
+                }
+                return (y * width + x) * 4;
+            }
+
+            // Iterate through every pixel
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = getIndex(x, y);
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // 1. Check if the current pixel is the target color
+                    if (isTargetColor(r, g, b)) {
+                        let isBorderPixel = false;
+                        
+                        // Define neighbor offsets (8 directions)
+                        const neighbors = [
+                            [-1, -1], [0, -1], [1, -1], // Top row
+                            [-1, 0],          [1, 0],  // Middle row
+                            [-1, 1],  [0, 1],  [1, 1]   // Bottom row
+                        ];
+
+                        // 2. Check neighbors
+                        for (const [dx, dy] of neighbors) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            const ni = getIndex(nx, ny);
+                            
+                            // Only check if the neighbor is within bounds
+                            if (ni !== -1) {
+                                const nr = data[ni];
+                                const ng = data[ni + 1];
+                                const nb = data[ni + 2];
+                                
+                                // 3. If a neighbor is *NOT* the target color, this current pixel is an edge pixel
+                                if (!isTargetColor(nr, ng, nb)) {
+                                    isBorderPixel = true;
+                                    break; 
+                                }
+                            }
+                        }
+
+                        // 4. If it's an edge pixel, highlight it in the new image data (bright red)
+                        if (isBorderPixel) {
+                            newData[i] = 255;    // Red
+                            newData[i + 1] = 0;  // Green
+                            newData[i + 2] = 0;  // Blue
+                            newData[i + 3] = 255; // Alpha (fully opaque)
+                        }
+                        // If it is the target color, but not an edge, it remains the original color in newData (which was copied initially)
+
+                    } else {
+                        // If the pixel is not the target color, it remains the original color
+                        // This is already handled by the initial copy, so no action needed here.
+                    }
+                }
+            }
+
+            // Put the new image data back onto the canvas
+            ctx.putImageData(newImageData, 0, 0);
+        }
+
+        // Event handler for the process button
+        processButton.addEventListener('click', () => {
+            const file = imageInput.files[0];
+            if (!file) {
+                showMessage("Please select an image file first.", 'error');
+                return;
+            }
+
+            setLoading(true);
+            showMessage("", 'clear');
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    try {
+                        // Set canvas dimensions to match the image
+                        outputCanvas.width = img.width;
+                        outputCanvas.height = img.height;
+                        
+                        const ctx = outputCanvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        // Get the image data from the canvas
+                        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                        
+                        // Process the image in a non-blocking way (using setTimeout)
+                        // This prevents the UI from freezing during heavy pixel manipulation
+                        setTimeout(() => {
+                            processImage(imageData);
+                            setLoading(false);
+                            showMessage("Borders detected and highlighted in bright red!", 'success');
+                        }, 50);
+
+                    } catch (e) {
+                        setLoading(false);
+                        showMessage("Error processing image. Make sure the image is valid and not from a different domain (if loaded from URL).", 'error');
+                        console.error("Image processing error:", e);
+                    }
+                };
+                img.onerror = function() {
+                    setLoading(false);
+                    showMessage("Error loading image. The file might be corrupted or in an unsupported format.", 'error');
+                }
+                img.src = event.target.result;
+            };
+            reader.onerror = function() {
+                setLoading(false);
+                showMessage("Error reading the file.", 'error');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Enable button when a file is selected
+        imageInput.addEventListener('change', () => {
+            setLoading(false);
+            if (imageInput.files.length > 0) {
+                processButton.disabled = false;
+                showMessage("Ready to process.", 'info');
+            } else {
+                processButton.disabled = true;
+                showMessage("", 'clear');
+            }
+        });
+
+        // Function to display messages
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden', 'text-red-600', 'bg-red-50', 'text-green-600', 'bg-green-50', 'text-blue-600', 'bg-blue-50');
+
+            if (type === 'error') {
+                messageBox.classList.add('text-red-600', 'bg-red-50');
+            } else if (type === 'success') {
+                messageBox.classList.add('text-green-600', 'bg-green-50');
+            } else if (type === 'info') {
+                messageBox.classList.add('text-blue-600', 'bg-blue-50');
+            } else {
+                messageBox.classList.add('hidden');
+            }
+        }
+
+        // Initialize message
+        showMessage("Please select an image to begin.", 'info');
+
+    </script>
+</body>
+</html>
