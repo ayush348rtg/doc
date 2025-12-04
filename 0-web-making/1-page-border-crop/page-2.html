@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color and Line Detector</title>
+    <!-- Load Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better centering and card look */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #f7f9fb;
+        }
+        .container {
+            max-width: 90%;
+            margin: auto;
+        }
+        #canvasContainer {
+            border: 1px solid #e2e8f0;
+            background-color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+            cursor: crosshair; /* Indicate that the canvas is clickable for manual adjust */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container flex flex-col items-center space-y-6">
+        
+        <!-- Header Card -->
+        <div class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Image Color Analyzer (Dual Scanner)</h1>
+            <p class="text-gray-600">Upload, analyze, and use the Dual Scanner to find red alignment. Click the image afterwards to set the two blue line crop boundaries precisely.</p>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+            <input type="file" id="imageInput" accept="image/*" class="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+            
+            <button id="analyzeButton" class="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-full hover:bg-indigo-700 transition duration-150 shadow-md disabled:bg-indigo-300" disabled>
+                Analyze (Map #EEEEEE to Red)
+            </button>
+            
+            <button id="scanButton" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition duration-150 shadow-md disabled:bg-green-300" disabled>
+                Start Dual Scanner
+            </button>
+        </div>
+        
+        <!-- Cropping/Manual Control -->
+        <div class="w-full max-w-2xl bg-white p-4 rounded-xl shadow-lg border border-gray-200 flex justify-between items-center">
+            <button id="cropButton" class="px-6 py-2 bg-red-500 text-white font-semibold rounded-full hover:bg-red-600 transition duration-150 shadow-md disabled:bg-red-300" disabled>
+                Crop Image
+            </button>
+            <p id="manualInstruction" class="text-sm text-gray-500 italic">Click canvas to set Line 1.</p>
+        </div>
+
+        <!-- Canvas and Results -->
+        <div class="w-full max-w-2xl bg-white p-4 rounded-xl shadow-lg border border-gray-200 space-y-4">
+            <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Processed Image & Scanner</h2>
+            <div id="canvasContainer" class="p-2 min-h-[200px]">
+                <canvas id="imageCanvas"></canvas>
+            </div>
+
+            <div class="space-y-3 pt-4">
+                <h3 class="text-lg font-semibold text-gray-800">Analysis Results:</h3>
+                <div id="statusMessage" class="p-3 bg-blue-50 text-blue-800 rounded-lg hidden"></div>
+                
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <p class="font-medium text-gray-700">Color Mapping Status:</p>
+                    <p id="colorStatus" class="text-sm text-gray-600 ml-2">No image loaded.</p>
+                </div>
+                
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <p class="font-medium text-gray-700">Full-Width Line Detection:</p>
+                    <p id="lineStatus" class="text-sm text-gray-600 ml-2">No line check performed.</p>
+                </div>
+
+                <div class="bg-blue-100 p-4 rounded-lg">
+                    <p class="font-medium text-blue-700">Dual Scanner Status:</p>
+                    <p id="scannerStatus" class="text-sm text-blue-600 ml-2">Scan not started.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global references
+        const imageInput = document.getElementById('imageInput');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const scanButton = document.getElementById('scanButton');
+        const cropButton = document.getElementById('cropButton'); // New button
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorStatus = document.getElementById('colorStatus');
+        const lineStatus = document.getElementById('lineStatus');
+        const scannerStatus = document.getElementById('scannerStatus');
+        const statusMessage = document.getElementById('statusMessage');
+        const manualInstruction = document.getElementById('manualInstruction');
+
+        // Target color (RGB values for #EEEEEE)
+        const TARGET_R = 0xEE;
+        const TARGET_G = 0xEE;
+        const TARGET_B = 0xEE;
+        
+        // Replacement color (RGB values for Red: #FF0000)
+        const REPLACEMENT_R = 0xFF;
+        const REPLACEMENT_G = 0x00;
+        const REPLACEMENT_B = 0x00;
+        
+        let originalImage = new Image();
+        let modifiedImageData = null; // Stores the image data after red mapping
+
+        let isScanning = false;
+        let scannerYTop = 0;    // Starts in middle, moves up
+        let scannerYBottom = 0; // Starts in middle, moves down
+        
+        let lockedY1 = -1; // Top boundary for crop/display
+        let lockedY2 = -1; // Bottom boundary for crop/display
+        let nextManualLine = 1; // 1 for lockedY1, 2 for lockedY2
+        
+        let animationFrameId = null;
+        
+        // Horizontal positions for the 3 dots (25%, 50%, 75% of width)
+        let PROBE_X_POSITIONS = []; 
+
+        // Utility function to display messages to the user
+        function displayMessage(text, type = 'info') {
+            statusMessage.textContent = text;
+            statusMessage.className = `p-3 rounded-lg ${type === 'error' ? 'bg-red-100 text-red-800' : 'bg-blue-50 text-blue-800'}`;
+            statusMessage.classList.remove('hidden');
+        }
+
+        // --- Event Listeners ---
+        
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    originalImage.onload = () => {
+                        // Reset scanner animation if active
+                        cancelAnimationFrame(animationFrameId);
+                        isScanning = false;
+                        
+                        // Set canvas dimensions to match the image
+                        canvas.width = originalImage.width;
+                        canvas.height = originalImage.height;
+                        
+                        // Recalculate probe positions based on new width
+                        PROBE_X_POSITIONS = [
+                            Math.floor(canvas.width * 0.25), 
+                            Math.floor(canvas.width * 0.50), 
+                            Math.floor(canvas.width * 0.75)
+                        ];
+
+                        // Draw the original image onto the canvas
+                        ctx.drawImage(originalImage, 0, 0);
+                        
+                        // Reset states
+                        modifiedImageData = null;
+                        lockedY1 = -1;
+                        lockedY2 = -1;
+                        nextManualLine = 1;
+
+                        analyzeButton.disabled = false;
+                        scanButton.disabled = true;
+                        cropButton.disabled = true;
+                        scanButton.textContent = 'Start Dual Scanner';
+                        colorStatus.textContent = 'Image loaded. Ready for analysis.';
+                        lineStatus.textContent = 'No line check performed.';
+                        scannerStatus.textContent = 'Scan not started.';
+                        manualInstruction.textContent = 'Click canvas to set Line 1.';
+                        displayMessage('Image ready to analyze.', 'info');
+                    };
+                    originalImage.onerror = () => {
+                        displayMessage('Could not load image. Please try a different file.', 'error');
+                        analyzeButton.disabled = true;
+                        scanButton.disabled = true;
+                        cropButton.disabled = true;
+                    };
+                    originalImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                analyzeButton.disabled = true;
+                scanButton.disabled = true;
+                cropButton.disabled = true;
+                colorStatus.textContent = 'No image selected.';
+                lineStatus.textContent = 'No line check performed.';
+            }
+        });
+
+        analyzeButton.addEventListener('click', analyzeImage);
+        
+        scanButton.addEventListener('click', () => {
+            if (!modifiedImageData) {
+                displayMessage('Please analyze the image first.', 'error');
+                return;
+            }
+            
+            if (isScanning) {
+                // Pause scan
+                cancelAnimationFrame(animationFrameId);
+                isScanning = false;
+                scanButton.textContent = 'Resume Dual Scanner';
+                scannerStatus.textContent = 'Scan Paused.';
+                displayMessage('Scanner paused. Click the image to manually adjust lines.', 'info');
+                // Draw the two lines at their last position
+                drawLockedLines(lockedY1, lockedY2);
+            } else {
+                // Start or restart scan
+                startScan();
+            }
+        });
+
+        canvas.addEventListener('click', handleManualAdjust); 
+        cropButton.addEventListener('click', cropImage);
+
+        // --- Core Functions ---
+
+        function analyzeImage() {
+            if (originalImage.complete && originalImage.src) {
+                displayMessage('Analyzing image...', 'info');
+                
+                // Stop any running scan before analysis
+                cancelAnimationFrame(animationFrameId);
+                isScanning = false;
+
+                const width = canvas.width;
+                const height = canvas.height;
+                // Get the image data fresh from the drawn image
+                const imageData = ctx.getImageData(0, 0, width, height); 
+                const data = imageData.data;
+                
+                let pixelsChangedCount = 0;
+                let firstLineY = -1;
+
+                // Array to store whether each pixel *was* the target color (#EEEEEE)
+                const isTargetColor = new Array(width * height).fill(false);
+
+                // 1. Color Replacement and Tagging
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const i = (y * width + x) * 4;
+                        
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+
+                        // Check if the current pixel matches #EEEEEE
+                        if (r === TARGET_R && g === TARGET_G && b === TARGET_B) {
+                            // a) Color Replacement: Change pixel to Red (#FF0000)
+                            data[i] = REPLACEMENT_R;
+                            data[i + 1] = REPLACEMENT_G;
+                            data[i + 2] = REPLACEMENT_B;
+                            pixelsChangedCount++;
+                            
+                            // b) Tag the pixel as having been the target color
+                            isTargetColor[y * width + x] = true;
+                        }
+                    }
+                }
+
+                // 2. Full-Width Line Search (Quick check for full lines)
+                for (let y = 0; y < height; y++) {
+                    let isLineFound = true;
+                    
+                    for (let x = 0; x < width; x++) {
+                        if (!isTargetColor[y * width + x]) {
+                            isLineFound = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isLineFound) {
+                        firstLineY = y;
+                        break;
+                    }
+                }
+
+                // 3. Store and Display
+                modifiedImageData = imageData; // Store the modified data globally
+                ctx.putImageData(modifiedImageData, 0, 0); // Display the red-mapped image
+                
+                // Reset scanner state
+                scannerYTop = Math.floor(height / 2);
+                scannerYBottom = Math.floor(height / 2) + 1;
+                lockedY1 = -1;
+                lockedY2 = -1;
+                nextManualLine = 1;
+
+                scanButton.disabled = false;
+                cropButton.disabled = true;
+                scanButton.textContent = 'Start Dual Scanner';
+                manualInstruction.textContent = 'Click canvas to set Line 1.';
+
+
+                // 4. Update results
+                colorStatus.innerHTML = `Converted <span class="font-bold text-red-600">${pixelsChangedCount.toLocaleString()}</span> pixels of <code class="bg-yellow-100 px-1 rounded font-mono text-sm">#EEEEEE</code> to Red (<code class="bg-red-200 px-1 rounded font-mono text-sm">#FF0000</code>).`;
+                
+                if (firstLineY !== -1) {
+                    lineStatus.innerHTML = `<span class="font-bold text-green-600">Found:</span> A continuous horizontal line was detected at Y-coordinate: <span class="font-mono bg-green-100 px-1 rounded">${firstLineY}</span>.`;
+                } else {
+                    lineStatus.innerHTML = `<span class="font-bold text-red-600">Not Found:</span> No continuous horizontal line of the target color spans the entire width.`;
+                }
+
+                scannerStatus.textContent = 'Ready to scan.';
+                displayMessage('Analysis complete. Scanner is ready.', 'info');
+
+            } else {
+                displayMessage('Please load an image first.', 'error');
+            }
+        }
+
+        function checkCollision(y) {
+            // Check if all three probe points are the replacement color (Red: #FF0000)
+            if (y < 0 || y >= canvas.height) return false;
+            
+            const data = modifiedImageData.data;
+            const width = canvas.width;
+            
+            for (let x of PROBE_X_POSITIONS) {
+                const i = (y * width + x) * 4;
+                
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // If any probe point is NOT red, return false
+                if (r !== REPLACEMENT_R || g !== REPLACEMENT_G || b !== REPLACEMENT_B) {
+                    return false;
+                }
+            }
+            // If the loop completes, all three points are red
+            return true;
+        }
+        
+        function drawLockedLines(y1, y2) {
+            if (!modifiedImageData) return;
+            
+            // 1. Restore the image (clear previous line/animation)
+            ctx.putImageData(modifiedImageData, 0, 0);
+            
+            // 2. Setup for line drawing (single, thick lines)
+            ctx.strokeStyle = '#0000FF'; // Blue color
+            ctx.lineWidth = 3; 
+            
+            const drawSingleLine = (y) => {
+                if (y >= 0 && y < canvas.height) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y + 0.5); 
+                    ctx.lineTo(canvas.width, y + 0.5);
+                    ctx.stroke();
+                }
+            };
+            
+            drawSingleLine(y1);
+            drawSingleLine(y2);
+
+            // Update crop button status
+            if (y1 !== -1 && y2 !== -1) {
+                cropButton.disabled = false;
+            } else {
+                cropButton.disabled = true;
+            }
+        }
+
+        function drawScannerLines(yTop, yBottom) {
+            // 1. Restore the image (clear previous lines)
+            ctx.putImageData(modifiedImageData, 0, 0);
+
+            // 2. Setup for line drawing
+            ctx.strokeStyle = '#0000FF'; 
+            ctx.lineWidth = 2; 
+            ctx.fillStyle = '#0000FF';
+
+            // Function to draw one line and its dots
+            const drawLine = (y) => {
+                if (y >= 0 && y < canvas.height) {
+                    // Draw main line
+                    ctx.beginPath();
+                    ctx.moveTo(0, y + 0.5); 
+                    ctx.lineTo(canvas.width, y + 0.5);
+                    ctx.stroke();
+
+                    // Draw dots
+                    for (let x of PROBE_X_POSITIONS) {
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, Math.PI * 2); 
+                        ctx.fill();
+                    }
+                }
+            };
+            
+            drawLine(yTop);
+            drawLine(yBottom);
+        }
+
+        function startScan() {
+            if (!modifiedImageData) return;
+            
+            // Reset state if starting new scan
+            cancelAnimationFrame(animationFrameId);
+            isScanning = true;
+            scannerYTop = Math.floor(canvas.height / 2);
+            scannerYBottom = Math.floor(canvas.height / 2) + 1;
+            lockedY1 = scannerYTop; // Initialize locked lines to starting position
+            lockedY2 = scannerYBottom; 
+            
+            scanButton.disabled = false;
+            scanButton.textContent = 'Pause Dual Scanner';
+            cropButton.disabled = true;
+            manualInstruction.textContent = 'Scanning in progress...';
+
+
+            function scanLoop() {
+                if (!isScanning) return; 
+
+                // 1. Draw the current frame (draws two lines)
+                drawScannerLines(scannerYTop, scannerYBottom);
+                
+                let matchY = -1;
+
+                // 2. Check for collision (Top line search)
+                if (scannerYTop >= 0 && checkCollision(scannerYTop)) {
+                    matchY = scannerYTop;
+                }
+                // 3. Check for collision (Bottom line search)
+                if (matchY === -1 && scannerYBottom < canvas.height && checkCollision(scannerYBottom)) {
+                    matchY = scannerYBottom;
+                }
+
+                if (matchY !== -1) {
+                    // Collision detected! Stop the scan.
+                    cancelAnimationFrame(animationFrameId);
+                    isScanning = false;
+                    
+                    // Lock both scanner lines as the boundaries of the search area
+                    lockedY1 = scannerYTop;
+                    lockedY2 = scannerYBottom;
+                    
+                    drawLockedLines(lockedY1, lockedY2); // Draw the two final lines
+                    
+                    scanButton.textContent = 'Restart Dual Scanner';
+                    scannerStatus.innerHTML = `<span class="font-bold text-green-600">MATCH FOUND!</span> Scanner stopped at Y-coords: ${lockedY1} and ${lockedY2}. Click image to fine-tune.`;
+                    displayMessage(`Scanner stopped. Alignment found. Two blue lines are locked.`, 'success');
+                    manualInstruction.textContent = `Click canvas to set Line 1 (Current: ${lockedY1}, ${lockedY2}).`;
+                    nextManualLine = 1;
+                    return;
+                }
+                
+                // 4. Move scanners outward
+                scannerYTop--;
+                scannerYBottom++;
+
+                // 5. Update locked Ys to current scanner positions (for paused state)
+                lockedY1 = scannerYTop;
+                lockedY2 = scannerYBottom;
+
+
+                // 6. Check boundaries
+                if (scannerYTop < 0 && scannerYBottom >= canvas.height) {
+                    // Both lines reached the edges without finding a match
+                    cancelAnimationFrame(animationFrameId);
+                    isScanning = false;
+                    scanButton.textContent = 'Restart Dual Scanner';
+                    scannerStatus.innerHTML = `<span class="font-bold text-red-600">Scan Complete:</span> No 3-point red alignment found during sweep.`;
+                    displayMessage('Scan finished. No matching alignment found. Click the image to manually adjust.', 'error');
+                    manualInstruction.textContent = `Click canvas to set Line 1 (Current: ${lockedY1}, ${lockedY2}).`;
+                    nextManualLine = 1;
+                    return;
+                }
+
+                // 7. Continue the loop
+                animationFrameId = requestAnimationFrame(scanLoop);
+                scannerStatus.textContent = `Scanning... Y Top: ${scannerYTop}, Y Bottom: ${scannerYBottom}`;
+            }
+
+            // Start the animation loop
+            scanLoop();
+        }
+
+        function handleManualAdjust(event) {
+            if (!modifiedImageData) {
+                displayMessage('Please analyze an image first.', 'error');
+                return;
+            }
+            
+            // If scanning, stop the animation first
+            if (isScanning) {
+                cancelAnimationFrame(animationFrameId);
+                isScanning = false;
+                scanButton.textContent = 'Restart Dual Scanner';
+                scannerStatus.textContent = 'Scan Paused for Manual Adjust.';
+                displayMessage('Scanner paused. Ready for manual line placement.', 'info');
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            // Calculate scaling factor from display size to actual image size 
+            const scaleY = canvas.height / rect.height;
+
+            // Map click coordinates (relative to canvas display) to image pixels
+            const clickY = Math.floor((event.clientY - rect.top) * scaleY);
+            
+            if (nextManualLine === 1) {
+                // Set the first locked line
+                lockedY1 = clickY;
+                nextManualLine = 2;
+                manualInstruction.textContent = `Line 1 set (${lockedY1}). Click canvas to set Line 2.`;
+                scannerStatus.textContent = `Manually setting boundary... Line 1 at Y=${lockedY1}.`;
+
+            } else {
+                // Set the second locked line
+                lockedY2 = clickY;
+                nextManualLine = 1;
+                manualInstruction.textContent = `Line 2 set (${lockedY2}). Click canvas to reset Line 1.`;
+                scannerStatus.textContent = `Boundaries set manually: Y1=${lockedY1}, Y2=${lockedY2}.`;
+            }
+            
+            // Ensure the lines are always drawn in the correct order for cropping
+            let yA = Math.min(lockedY1, lockedY2);
+            let yB = Math.max(lockedY1, lockedY2);
+
+            // Draw the two locked lines (even if one is -1, it will draw the other)
+            drawLockedLines(yA, yB); 
+            
+            displayMessage(`Line ${nextManualLine === 2 ? '1' : '2'} manually set at Y=${clickY}.`, 'info');
+        }
+
+        function cropImage() {
+            if (!modifiedImageData || lockedY1 === -1 || lockedY2 === -1) {
+                displayMessage('Cannot crop. Please set two line boundaries first.', 'error');
+                return;
+            }
+
+            // 1. Determine the crop area (ensuring y1 < y2)
+            const cropY = Math.min(lockedY1, lockedY2);
+            const cropHeight = Math.abs(lockedY2 - lockedY1);
+
+            if (cropHeight < 1) {
+                displayMessage('Crop area is too small. Please ensure the two lines are distinct.', 'error');
+                return;
+            }
+
+            const width = canvas.width;
+            
+            // 2. Extract the cropped image data
+            const croppedImageData = ctx.getImageData(0, cropY, width, cropHeight);
+            
+            // 3. Update the canvas size and draw the cropped image
+            canvas.height = cropHeight;
+            canvas.width = width; // Width remains the same
+            
+            ctx.putImageData(croppedImageData, 0, 0);
+
+            // 4. Update the global state
+            modifiedImageData = croppedImageData;
+            lockedY1 = -1;
+            lockedY2 = -1;
+            cropButton.disabled = true;
+            scanButton.disabled = true;
+            analyzeButton.disabled = true;
+            
+            scannerStatus.textContent = `Image cropped from Y=${cropY} with height ${cropHeight}.`;
+            displayMessage(`Image successfully cropped! Reload the page to analyze a new image.`, 'success');
+            manualInstruction.textContent = 'Image cropped.';
+        }
+
+    </script>
+</body>
+</html>
