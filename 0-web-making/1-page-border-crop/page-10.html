@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool by Ayu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- General Layout --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: lightgray;
+        }
+        .container {
+            max-width: 85%;
+            margin: auto;
+        }
+        .img_pre {
+            max-width: 85%;
+            margin: auto;
+        }
+        
+        /* --- Canvas Container --- */
+        #canvasContainer {
+            border: 1px solid #e2e8f0;
+            background-color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            position: relative;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* --- Button Styles (Cleaner & Smaller) --- */
+        .btn {
+            padding: 6px 14px;      /* Smaller padding */
+            font-size: 0.85rem;     /* Smaller font */
+            font-weight: 600;
+            border-radius: 9999px;  /* Full rounded */
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Specific Button Colors */
+        .btn-nav {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #374151;            /* gray-700 */
+        }
+        .btn-nav:hover:not(:disabled) {
+            background-color: #d1d5db; /* gray-300 */
+        }
+
+        .btn-primary {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: #4338ca; /* indigo-700 */
+        }
+
+        .btn-success {
+            background-color: #dcfce7; /* green-100 */
+            color: #15803d;            /* green-700 */
+            border: 1px solid #86efac;
+        }
+        .btn-success:hover:not(:disabled) {
+            background-color: #bbf7d0; /* green-200 */
+        }
+
+        .btn-danger {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .btn-danger:hover:not(:disabled) {
+            background-color: #dc2626; /* red-600 */
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container flex flex-col items-center space-y-2">
+    
+        <div class="w-full max-w-4xl bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col space-y-4">
+            
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-center">
+                <input type="file" id="imageInput" accept="image/*" multiple class="flex-grow w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 
+                file:text-indigo-700 hover:file:bg-indigo-100" />
+                <span id="fileCount" class="text-xs text-gray-500 font-medium whitespace-nowrap">No images selected</span>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 w-full border-t pt-4">
+                
+                <div class="flex items-center space-x-2">
+                    <button id="prevBtn" class="btn btn-nav" disabled>
+                        &larr; Prev
+                    </button>
+                    <span id="imageCounter" class="text-xs font-mono font-bold w-20 text-center">-- / --</span>
+                    <button id="nextBtn" class="btn btn-nav" disabled>
+                        Next &rarr;
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button id="analyzeButton" class="btn btn-primary" disabled>
+                        Analyze & Auto-Scan
+                    </button>
+                    <button id="scanButton" class="btn btn-success hidden">
+                        Restart Scan
+                    </button>
+                </div>
+
+                <button id="cropButton" class="btn btn-danger" disabled>
+                    Crop Area
+                </button>
+            </div>
+            
+            <p id="currentFileName" class="text-center text-xs font-bold text-gray-700 bg-gray-50 py-1 rounded">No file loaded</p>
+        </div>
+
+        <div class="img_pre w-full">
+            <div class="w-full max-w-4xl bg-white p-4 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Image Preview</h2>
+        
+                <div id="canvasContainer" class="p-2">
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+
+                <div class="space-y-3 pt-4">
+                    <div id="statusMessage" class="p-2 text-sm rounded-lg hidden"></div>
+                    <div class="flex justify-between text-xs text-gray-500">
+                         <span id="scannerStatus">Scanner: Idle</span>
+                         <span id="manualInstruction" class="italic"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL REFERENCES ---
+        const imageInput = document.getElementById('imageInput');
+        const fileCountSpan = document.getElementById('fileCount');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const imageCounter = document.getElementById('imageCounter');
+        const currentFileName = document.getElementById('currentFileName');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const scanButton = document.getElementById('scanButton');
+        const cropButton = document.getElementById('cropButton');
+        
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusMessage = document.getElementById('statusMessage');
+        const scannerStatus = document.getElementById('scannerStatus');
+        const manualInstruction = document.getElementById('manualInstruction');
+
+        // --- CONSTANTS ---
+        // You can check URL for ?colore=HEXCODE or default to #EEEEEE
+        const whereis = new URLSearchParams(window.location.search);
+        const TARGET_HEX_COLOR = whereis.get("colore") || "#eeeeee"; 
+        
+        const REPLACEMENT_R = 0xFF;
+        const REPLACEMENT_G = 0x00;
+        const REPLACEMENT_B = 0x00;
+        
+        const H_LINE_COLOR = '#0000FF'; // Blue
+        const V_LINE_COLOR = '#4B0082'; // Indigo
+        
+        const SCAN_SPEED = 15;
+        const DRAG_TOLERANCE = 20;
+
+        // --- STATE MANAGEMENT ---
+        let imageFiles = [];
+        let currentImageIndex = -1;
+        let stateCache = {}; 
+        
+        let originalImage = new Image();
+        let modifiedImageData = null; 
+        let isScanning = false;
+        let animationFrameId = null;
+        
+        // Locks
+        let isTopLocked = false, isBottomLocked = false, isLeftLocked = false, isRightLocked = false;
+        let scannerYTop=0, scannerYBottom=0, scannerXLeft=0, scannerXRight=0;
+        let lockedY1=-1, lockedY2=-1, lockedX1=-1, lockedX2=-1;
+        let H_PROBE_X = [], V_PROBE_Y = [];
+
+        // Dragging
+        let isDragging = false;
+        let draggingLine = 0;
+
+        function displayMessage(text, type = 'info') {
+            statusMessage.textContent = text;
+            statusMessage.className = `p-2 text-sm rounded-lg ${type === 'error' ? 'bg-red-100 text-red-800' : type === 'success' ? 'bg-green-100 text-green-800' : 'bg-blue-50 text-blue-800'}`;
+            statusMessage.classList.remove('hidden');
+        }
+
+        // --- FILE INPUT ---
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                imageFiles = Array.from(e.target.files).sort((a, b) => 
+                   a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+               );
+                fileCountSpan.textContent = `${imageFiles.length} images selected`;
+                stateCache = {};
+                currentImageIndex = 0;
+                loadImage(currentImageIndex);
+            }
+        });
+
+        // --- NAVIGATION ---
+        prevBtn.addEventListener('click', () => {
+            if (currentImageIndex > 0) {
+                saveCurrentState(); 
+                currentImageIndex--;
+                loadImage(currentImageIndex);
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentImageIndex < imageFiles.length - 1) {
+                saveCurrentState();
+                currentImageIndex++;
+                loadImage(currentImageIndex);
+            }
+        });
+
+        function updateNavUI() {
+            prevBtn.disabled = currentImageIndex <= 0;
+            nextBtn.disabled = currentImageIndex >= imageFiles.length - 1;
+            imageCounter.textContent = `${currentImageIndex + 1} / ${imageFiles.length}`;
+            currentFileName.textContent = imageFiles[currentImageIndex].name;
+            
+            const cache = stateCache[currentImageIndex];
+            if (cache && cache.isAnalyzed) {
+                analyzeButton.textContent = "Re-Analyze";
+                analyzeButton.disabled = false;
+            } else {
+                analyzeButton.textContent = "Analyze & Auto-Scan";
+                analyzeButton.disabled = false;
+            }
+        }
+
+        // --- CORE FUNCTIONS ---
+
+        function saveCurrentState() {
+            if (currentImageIndex === -1) return;
+            stateCache[currentImageIndex] = {
+                modifiedImageData: modifiedImageData,
+                isAnalyzed: !!modifiedImageData,
+                isTopLocked, isBottomLocked, isLeftLocked, isRightLocked,
+                lockedY1, lockedY2, lockedX1, lockedX2,
+                scannerYTop, scannerYBottom, scannerXLeft, scannerXRight
+             };
+        }
+
+        // Helper to cleanly reset variables before loading new image
+        function resetState() {
+            cancelAnimationFrame(animationFrameId);
+            isScanning = false;
+            isDragging = false;
+            modifiedImageData = null;
+            
+            isTopLocked = false; isBottomLocked = false;
+            isLeftLocked = false; isRightLocked = false;
+            lockedY1 = -1; lockedY2 = -1; lockedX1 = -1; lockedX2 = -1;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            statusMessage.classList.add('hidden');
+            cropButton.disabled = true;
+            scanButton.classList.add('hidden');
+        }
+
+        function loadImage(index) {
+            // 1. Force Reset
+            resetState();
+            updateNavUI();
+
+            const file = imageFiles[index];
+            const cache = stateCache[index];
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    // 2. Setup Canvas
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+                    
+                    // 3. Check Cache
+                    if (cache && cache.modifiedImageData) {
+                        modifiedImageData = cache.modifiedImageData;
+                        isTopLocked = cache.isTopLocked;
+                        isBottomLocked = cache.isBottomLocked;
+                        isLeftLocked = cache.isLeftLocked;
+                        isRightLocked = cache.isRightLocked;
+
+                        lockedY1 = cache.lockedY1; lockedY2 = cache.lockedY2;
+                        lockedX1 = cache.lockedX1; lockedX2 = cache.lockedX2;
+
+                        canvas.width = modifiedImageData.width;
+                        canvas.height = modifiedImageData.height;
+                        ctx.putImageData(modifiedImageData, 0, 0);
+                        
+                        cropButton.disabled = !(isTopLocked && isBottomLocked && isLeftLocked && isRightLocked);
+                        scanButton.classList.remove('hidden');
+                        displayMessage('Loaded previous state.', 'info');
+                        drawLockedLines();
+                    } else {
+                        // New Image
+                        ctx.drawImage(originalImage, 0, 0);
+                        displayMessage('Image loaded. Ready to Analyze.', 'info');
+                    }
+
+                    // Recalculate Probes based on ORIGINAL size
+                    const w = originalImage.width;
+                    const h = originalImage.height;
+                    H_PROBE_X = [Math.floor(w * 0.25), Math.floor(w * 0.50), Math.floor(w * 0.75)];
+                    V_PROBE_Y = [Math.floor(h * 0.25), Math.floor(h * 0.50), Math.floor(h * 0.75)];
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- ANALYSIS ---
+        
+        analyzeButton.addEventListener('click', () => {
+            analyzeImage();
+        });
+
+        function analyzeImage() {
+            displayMessage('Analyzing color mapping...', 'info');
+            cancelAnimationFrame(animationFrameId);
+            isScanning = false;
+
+            // Extract RGB from HEX constant
+            let hex = TARGET_HEX_COLOR.startsWith('#') ? TARGET_HEX_COLOR.substring(1) : TARGET_HEX_COLOR;
+            if (hex.length < 6) hex = hex.padStart(6, hex[0] || 'E'); 
+            const targetR = parseInt(hex.substring(0, 2), 16);
+            const targetG = parseInt(hex.substring(2, 4), 16);
+            const targetB = parseInt(hex.substring(4, 6), 16);
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+
+            let pixelsChanged = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] === targetR && data[i+1] === targetG && data[i+2] === targetB) {
+                    data[i] = REPLACEMENT_R;
+                    data[i+1] = REPLACEMENT_G;
+                    data[i+2] = REPLACEMENT_B;
+                    pixelsChanged++;
+                }
+            }
+
+            modifiedImageData = imageData;
+            ctx.putImageData(modifiedImageData, 0, 0);
+
+            // Reset Scanner positions
+            const midY = Math.floor(height / 2);
+            const midX = Math.floor(width / 2);
+            scannerYTop = midY; scannerYBottom = midY + 1;
+            scannerXLeft = midX; scannerXRight = midX + 1;
+            
+            isTopLocked = false; isBottomLocked = false;
+            isLeftLocked = false; isRightLocked = false;
+            lockedY1 = -1; lockedY2 = -1; lockedX1 = -1; lockedX2 = -1;
+
+            displayMessage(`Mapped ${pixelsChanged} pixels. Starting Auto-Scan...`, 'success');
+            scanButton.classList.remove('hidden');
+            startScan();
+        }
+
+        scanButton.addEventListener('click', () => {
+            if(isScanning) {
+                cancelAnimationFrame(animationFrameId);
+                isScanning = false;
+                scannerStatus.textContent = "Scan Paused manually.";
+            } else {
+                startScan();
+            }
+        });
+
+        // --- SCANNER LOGIC ---
+
+        function checkHCollision(y) {
+            if (y < 0 || y >= modifiedImageData.height) return false;
+            const data = modifiedImageData.data;
+            const w = modifiedImageData.width;
+            for (let x of H_PROBE_X) {
+                const i = (y * w + x) * 4;
+                if (data[i] !== REPLACEMENT_R || data[i+1] !== REPLACEMENT_G || data[i+2] !== REPLACEMENT_B) return false;
+            }
+            return true;
+        }
+
+        function checkVCollision(x) {
+            if (x < 0 || x >= modifiedImageData.width) return false;
+            const data = modifiedImageData.data;
+            const w = modifiedImageData.width;
+            for (let y of V_PROBE_Y) {
+                const i = (y * w + x) * 4;
+                if (data[i] !== REPLACEMENT_R || data[i+1] !== REPLACEMENT_G || data[i+2] !== REPLACEMENT_B) return false;
+            }
+            return true;
+        }
+
+        function startScan() {
+            if (!modifiedImageData) return;
+            cancelAnimationFrame(animationFrameId);
+            isScanning = true;
+            cropButton.disabled = true;
+            manualInstruction.textContent = "Scanning independently...";
+            
+            function loop() {
+                if (!isScanning) return;
+
+                // 1. Top
+                if (!isTopLocked) {
+                    let found = false;
+                    for(let y = scannerYTop; y > scannerYTop - SCAN_SPEED; y--) {
+                        if (checkHCollision(y)) {
+                            isTopLocked = true; lockedY1 = y; found = true; break;
+                        }
+                    }
+                    if (!found) {
+                        scannerYTop -= SCAN_SPEED;
+                        if (scannerYTop < 0) { isTopLocked = true; lockedY1 = 0; }
+                    }
+                }
+
+                // 2. Bottom
+                if (!isBottomLocked) {
+                    let found = false;
+                    for(let y = scannerYBottom; y < scannerYBottom + SCAN_SPEED; y++) {
+                        if (checkHCollision(y)) {
+                            isBottomLocked = true; lockedY2 = y; found = true; break;
+                        }
+                    }
+                    if (!found) {
+                        scannerYBottom += SCAN_SPEED;
+                        if (scannerYBottom > modifiedImageData.height) { isBottomLocked = true; lockedY2 = modifiedImageData.height; }
+                    }
+                }
+
+                // 3. Left
+                if (!isLeftLocked) {
+                    let found = false;
+                    for(let x = scannerXLeft; x > scannerXLeft - SCAN_SPEED; x--) {
+                        if (checkVCollision(x)) {
+                            isLeftLocked = true; lockedX1 = x; found = true; break;
+                        }
+                    }
+                    if (!found) {
+                        scannerXLeft -= SCAN_SPEED;
+                        if (scannerXLeft < 0) { isLeftLocked = true; lockedX1 = 0; }
+                    }
+                }
+
+                // 4. Right
+                if (!isRightLocked) {
+                    let found = false;
+                    for(let x = scannerXRight; x < scannerXRight + SCAN_SPEED; x++) {
+                        if (checkVCollision(x)) {
+                            isRightLocked = true; lockedX2 = x; found = true; break;
+                        }
+                    }
+                    if (!found) {
+                        scannerXRight += SCAN_SPEED;
+                        if (scannerXRight > modifiedImageData.width) { isRightLocked = true; lockedX2 = modifiedImageData.width; }
+                    }
+                }
+
+                drawScannerVisuals();
+
+                if(isTopLocked && isBottomLocked && isLeftLocked && isRightLocked) {
+                    isScanning = false;
+                    cropButton.disabled = false;
+                    manualInstruction.textContent = "Locked. Drag lines to adjust.";
+                    displayMessage("Auto-Scan Complete. Ready to crop.", "success");
+                    return;
+                }
+                animationFrameId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function drawScannerVisuals() {
+            ctx.putImageData(modifiedImageData, 0, 0);
+            
+            const hLine = (y, locked) => {
+                ctx.beginPath();
+                ctx.strokeStyle = locked ? H_LINE_COLOR : '#AAAAFF';
+                ctx.lineWidth = locked ? 3 : 1;
+                ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                if (locked) {
+                    ctx.beginPath();
+                    ctx.arc(canvas.width / 2, y, 6, 0, 2 * Math.PI); 
+                    ctx.fillStyle = H_LINE_COLOR; ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.stroke();
+                }
+            }
+            const vLine = (x, locked) => {
+                ctx.beginPath();
+                ctx.strokeStyle = locked ? V_LINE_COLOR : '#9988AA';
+                ctx.lineWidth = locked ? 3 : 1;
+                ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                 if (locked) {
+                    ctx.beginPath();
+                    ctx.arc(x, canvas.height / 2, 6, 0, 2 * Math.PI); 
+                    ctx.fillStyle = V_LINE_COLOR; ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.stroke();
+                }
+            }
+
+            hLine(isTopLocked ? lockedY1 : scannerYTop, isTopLocked);
+            hLine(isBottomLocked ? lockedY2 : scannerYBottom, isBottomLocked);
+            vLine(isLeftLocked ? lockedX1 : scannerXLeft, isLeftLocked);
+            vLine(isRightLocked ? lockedX2 : scannerXRight, isRightLocked);
+        }
+
+        function drawLockedLines() { drawScannerVisuals(); }
+
+        // --- DRAGGING ---
+        
+        function getCanvasPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        function handleDragStart(pos) {
+            if (!modifiedImageData) return;
+            if (isScanning) {
+                isScanning = false;
+                cancelAnimationFrame(animationFrameId);
+                displayMessage("Scan paused for manual adjustment.", "info");
+            }
+            if (isTopLocked && Math.abs(pos.y - lockedY1) < DRAG_TOLERANCE) { isDragging = true; draggingLine = 1; return; }
+            if (isBottomLocked && Math.abs(pos.y - lockedY2) < DRAG_TOLERANCE) { isDragging = true; draggingLine = 2; return; }
+            if (isLeftLocked && Math.abs(pos.x - lockedX1) < DRAG_TOLERANCE) { isDragging = true; draggingLine = 3; return; }
+            if (isRightLocked && Math.abs(pos.x - lockedX2) < DRAG_TOLERANCE) { isDragging = true; draggingLine = 4; return; }
+        }
+
+        function handleDragMove(pos) {
+             if (!isDragging) {
+                if (pos.clientX) { 
+                    let cursor = 'crosshair';
+                    if ((isTopLocked && Math.abs(pos.y - lockedY1) < DRAG_TOLERANCE) || 
+                        (isBottomLocked && Math.abs(pos.y - lockedY2) < DRAG_TOLERANCE)) cursor = 'ns-resize';
+                    else if ((isLeftLocked && Math.abs(pos.x - lockedX1) < DRAG_TOLERANCE) || 
+                             (isRightLocked && Math.abs(pos.x - lockedX2) < DRAG_TOLERANCE)) cursor = 'ew-resize';
+                    canvas.style.cursor = cursor;
+                }
+                return;
+            }
+            const boundsW = modifiedImageData.width;
+            const boundsH = modifiedImageData.height;
+            if (draggingLine === 1) lockedY1 = Math.max(0, Math.min(boundsH, pos.y));
+            if (draggingLine === 2) lockedY2 = Math.max(0, Math.min(boundsH, pos.y));
+            if (draggingLine === 3) lockedX1 = Math.max(0, Math.min(boundsW, pos.x));
+            if (draggingLine === 4) lockedX2 = Math.max(0, Math.min(boundsW, pos.x));
+            drawLockedLines();
+        }
+
+        function handleDragEnd() {
+            isDragging = false; draggingLine = 0;
+            cropButton.disabled = !(isTopLocked && isBottomLocked && isLeftLocked && isRightLocked);
+        }
+
+        canvas.addEventListener('mousedown', (e) => handleDragStart(getCanvasPos(e)));
+        canvas.addEventListener('mousemove', (e) => handleDragMove(getCanvasPos(e)));
+        canvas.addEventListener('mouseup', handleDragEnd);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleDragStart(getCanvasPos(e)); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleDragMove(getCanvasPos(e)); });
+        canvas.addEventListener('touchend', handleDragEnd);
+
+        // --- CROP & DOWNLOAD ---
+        cropButton.addEventListener('click', () => {
+            if (!isTopLocked || !isBottomLocked || !isLeftLocked || !isRightLocked) return;
+
+            const y = Math.min(lockedY1, lockedY2);
+            const h = Math.abs(lockedY2 - lockedY1);
+            const x = Math.min(lockedX1, lockedX2);
+            const w = Math.abs(lockedX2 - lockedX1);
+
+            if (w < 1 || h < 1) return;
+
+            // 1. Update View with Cropped Data
+            const newData = ctx.getImageData(x, y, w, h);
+            canvas.width = w; canvas.height = h;
+            ctx.putImageData(newData, 0, 0);
+            modifiedImageData = newData;
+            
+            // 2. Download Clean Image
+            if (imageFiles[currentImageIndex]) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w; tempCanvas.height = h;
+                const tempCtx = tempCanvas.getContext('2d');
+                // Draw unmapped original
+                tempCtx.drawImage(originalImage, x, y, w, h, 0, 0, w, h);
+
+                const originalName = imageFiles[currentImageIndex].name;
+                const parts = originalName.split('.');
+                const extension = parts.length > 1 ? parts.pop() : 'jpg'; 
+                const baseName = parts.join('.');
+                const newFileName = `${baseName}_ayu.${extension}`;
+
+                tempCanvas.toBlob((blob) => {
+                    const link = document.createElement('a');
+                    link.download = newFileName;
+                    link.href = URL.createObjectURL(blob);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                    displayMessage("Cropped and downloaded: " + newFileName, "success");
+                }, 'image/jpeg', 0.9);
+            }
+
+            // Reset Locks but keep image loaded
+            isTopLocked = false; isBottomLocked = false;
+            isLeftLocked = false; isRightLocked = false;
+            lockedY1=-1; lockedY2=-1; lockedX1=-1; lockedX2=-1;
+            cropButton.disabled = true;
+            
+            saveCurrentState();
+        });
+
+    </script>
+</body>
+  </html>
