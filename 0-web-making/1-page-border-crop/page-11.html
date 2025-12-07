@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool by Ayu - Multi-View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- General Layout --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #f3f4f6;
+            padding-bottom: 50px;
+        }
+        .container {
+            max-width: 95%; /* Wider on mobile to use space */
+            margin: auto;
+        }
+
+        /* --- Image Card Styling --- */
+        .image-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1.5rem; /* Reduced gap */
+        }
+
+        .card-header {
+            background-color: #f9fafb;
+            padding: 0.5rem 0.75rem; /* Compact header */
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            background-color: #ffffff;
+            /* UPDATED: Smaller fixed height for mobile visibility */
+            height: 250px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+            cursor: crosshair;
+            touch-action: none; 
+        }
+
+        .controls-area {
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: white;
+        }
+
+        /* --- Button Styles --- */
+        .btn {
+            padding: 4px 12px; /* Smaller buttons */
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 9999px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #e5e7eb;
+            color: #9ca3af;
+        }
+
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) { background-color: #4338ca; }
+
+        .btn-crop {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-crop:hover:not(:disabled) { background-color: #dc2626; }
+
+    </style>
+</head>
+<body class="p-2 md:p-4">
+
+    <div class="container flex flex-col items-center">
+    
+        <div class="w-full max-w-5xl bg-white p-3 rounded-xl shadow-md border border-gray-200 mb-6 sticky top-2 z-50">
+            <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 items-center justify-between">
+                <div class="flex items-center w-full">
+                    <input type="file" id="imageInput" accept="image/*" multiple class="flex-grow w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 
+                    file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" />
+                </div>
+                <span id="fileCount" class="text-xs text-gray-500 font-bold whitespace-nowrap px-2">No images loaded</span>
+            </div>
+        </div>
+
+        <div id="imageList" class="w-full max-w-5xl">
+            </div>
+
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const whereis = new URLSearchParams(window.location.search);
+        const TARGET_HEX_COLOR = whereis.get("colore") || "#eeeeee"; 
+        
+        const REPLACEMENT_R = 0xFF;
+        const REPLACEMENT_G = 0x00;
+        const REPLACEMENT_B = 0x00;
+        
+        const H_LINE_COLOR = '#0000FF'; // Blue
+        const V_LINE_COLOR = '#4B0082'; // Indigo
+        
+        const SCAN_SPEED = 15;
+        const DRAG_TOLERANCE = 20;
+
+        // --- GLOBAL STATE ---
+        const imageInput = document.getElementById('imageInput');
+        const fileCountSpan = document.getElementById('fileCount');
+        const imageListContainer = document.getElementById('imageList');
+
+        // This array will hold the state object for EVERY image
+        let imageStates = []; 
+        let imageFiles = [];
+
+        // Global tracker for dragging to know WHICH canvas is active
+        let activeDragIndex = -1;
+
+        // --- INIT & RENDER ---
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                // Sort files
+                imageFiles = Array.from(e.target.files).sort((a, b) => 
+                   a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+                );
+
+                fileCountSpan.textContent = `${imageFiles.length} images loaded`;
+                
+                // Reset State
+                imageStates = [];
+                imageListContainer.innerHTML = ''; // Clear UI
+
+                // Render List
+                imageFiles.forEach((file, index) => {
+                    createImageCard(file, index);
+                });
+            }
+        });
+
+        function createImageCard(file, index) {
+            // 1. Initialize State for this index
+            imageStates[index] = {
+                originalImage: new Image(),
+                modifiedImageData: null,
+                isScanning: false,
+                animationFrameId: null,
+                // Locks & Positions
+                isTopLocked: false, isBottomLocked: false, isLeftLocked: false, isRightLocked: false,
+                scannerYTop: 0, scannerYBottom: 0, scannerXLeft: 0, scannerXRight: 0,
+                lockedY1: -1, lockedY2: -1, lockedX1: -1, lockedX2: -1,
+                // Probes
+                H_PROBE_X: [], V_PROBE_Y: [],
+                // Dragging state local to image
+                draggingLine: 0
+            };
+
+            // 2. Create HTML Structure
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="flex items-center space-x-2 overflow-hidden">
+                        <span class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] font-bold shrink-0">#${index + 1}</span>
+                        <span class="text-xs font-semibold text-gray-800 truncate" title="${file.name}">${file.name}</span>
+                    </div>
+                    <span id="status-${index}" class="text-[10px] font-mono text-gray-500 shrink-0 ml-2">Ready</span>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="canvas-${index}"></canvas>
+                </div>
+                <div class="controls-area">
+                    <div class="text-[10px] text-gray-400 italic w-1/3 truncate" id="msg-${index}"></div>
+                    <div class="flex space-x-2">
+                        <button class="btn btn-primary" onclick="startAnalysis(${index})" id="btn-analyze-${index}">
+                            Auto-Scan
+                        </button>
+                        <button class="btn btn-crop" onclick="performCrop(${index})" id="btn-crop-${index}" disabled>
+                            Crop
+                        </button>
+                    </div>
+                </div>
+            `;
+            imageListContainer.appendChild(card);
+
+            // 3. Load Image to Canvas
+            const canvas = document.getElementById(`canvas-${index}`);
+            const ctx = canvas.getContext('2d');
+            const state = imageStates[index];
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.originalImage.onload = () => {
+                    canvas.width = state.originalImage.width;
+                    canvas.height = state.originalImage.height;
+                    ctx.drawImage(state.originalImage, 0, 0);
+
+                    // Calc Probes
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    state.H_PROBE_X = [Math.floor(w * 0.25), Math.floor(w * 0.50), Math.floor(w * 0.75)];
+                    state.V_PROBE_Y = [Math.floor(h * 0.25), Math.floor(h * 0.50), Math.floor(h * 0.75)];
+                };
+                state.originalImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // 4. Attach Drag Events specifically to this canvas
+            canvas.addEventListener('mousedown', (e) => {
+                activeDragIndex = index;
+                handleDragStart(e, index);
+            });
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                activeDragIndex = index;
+                handleDragStart(e, index);
+            });
+        }
+
+        // --- GLOBAL WINDOW EVENTS FOR DRAGGING ---
+        // We attach these to window so dragging is smooth even if mouse leaves canvas momentarily
+        window.addEventListener('mousemove', (e) => {
+            if (activeDragIndex !== -1) {
+                handleDragMove(e, activeDragIndex);
+            }
+        });
+        window.addEventListener('mouseup', () => {
+            if (activeDragIndex !== -1) {
+                handleDragEnd(activeDragIndex);
+                activeDragIndex = -1;
+            }
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (activeDragIndex !== -1) {
+                e.preventDefault(); // Stop scroll
+                handleDragMove(e, activeDragIndex);
+            }
+        }, { passive: false });
+        window.addEventListener('touchend', () => {
+            if (activeDragIndex !== -1) {
+                handleDragEnd(activeDragIndex);
+                activeDragIndex = -1;
+            }
+        });
+
+
+        // --- LOGIC PER INDEX ---
+
+        function updateStatus(index, text, type = 'neutral') {
+            const el = document.getElementById(`status-${index}`);
+            el.textContent = text;
+            if(type === 'success') el.className = "text-[10px] font-bold text-green-600 shrink-0 ml-2";
+            else if(type === 'scanning') el.className = "text-[10px] font-bold text-indigo-600 animate-pulse shrink-0 ml-2";
+            else el.className = "text-[10px] font-mono text-gray-500 shrink-0 ml-2";
+        }
+
+        function startAnalysis(index) {
+            const state = imageStates[index];
+            const canvas = document.getElementById(`canvas-${index}`);
+            const ctx = canvas.getContext('2d');
+
+            updateStatus(index, "Scanning...", "scanning");
+            
+            // 1. Reset locks for re-analysis
+            state.isTopLocked = false; state.isBottomLocked = false;
+            state.isLeftLocked = false; state.isRightLocked = false;
+            state.lockedY1 = -1; state.lockedY2 = -1; state.lockedX1 = -1; state.lockedX2 = -1;
+            if(state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+
+            // 2. Color Mapping
+            const w = canvas.width;
+            const h = canvas.height;
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const data = imageData.data;
+
+            let hex = TARGET_HEX_COLOR.startsWith('#') ? TARGET_HEX_COLOR.substring(1) : TARGET_HEX_COLOR;
+            if (hex.length < 6) hex = hex.padStart(6, hex[0] || 'E'); 
+            const tR = parseInt(hex.substring(0, 2), 16);
+            const tG = parseInt(hex.substring(2, 4), 16);
+            const tB = parseInt(hex.substring(4, 6), 16);
+
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] === tR && data[i+1] === tG && data[i+2] === tB) {
+                    data[i] = REPLACEMENT_R;
+                    data[i+1] = REPLACEMENT_G;
+                    data[i+2] = REPLACEMENT_B;
+                }
+            }
+
+            state.modifiedImageData = imageData;
+            ctx.putImageData(imageData, 0, 0);
+
+            // 3. Setup Scanner
+            const midY = Math.floor(h / 2);
+            const midX = Math.floor(w / 2);
+            state.scannerYTop = midY; state.scannerYBottom = midY + 1;
+            state.scannerXLeft = midX; state.scannerXRight = midX + 1;
+            
+            state.isScanning = true;
+            document.getElementById(`btn-crop-${index}`).disabled = true;
+
+            // 4. Start Loop for THIS index
+            startScanLoop(index);
+        }
+
+        function startScanLoop(index) {
+            const state = imageStates[index];
+            const canvas = document.getElementById(`canvas-${index}`);
+            const ctx = canvas.getContext('2d');
+
+            function loop() {
+                if (!state.isScanning) return;
+
+                // --- Detection Logic (Local to this iteration) ---
+                
+                // Helper to check collision
+                const checkH = (y) => {
+                    if (y < 0 || y >= state.modifiedImageData.height) return false;
+                    const d = state.modifiedImageData.data;
+                    const w = state.modifiedImageData.width;
+                    for (let x of state.H_PROBE_X) {
+                        const i = (y * w + x) * 4;
+                        if (d[i] !== REPLACEMENT_R || d[i+1] !== REPLACEMENT_G || d[i+2] !== REPLACEMENT_B) return false;
+                    }
+                    return true;
+                };
+
+                const checkV = (x) => {
+                    if (x < 0 || x >= state.modifiedImageData.width) return false;
+                    const d = state.modifiedImageData.data;
+                    const w = state.modifiedImageData.width;
+                    for (let y of state.V_PROBE_Y) {
+                        const i = (y * w + x) * 4;
+                        if (d[i] !== REPLACEMENT_R || d[i+1] !== REPLACEMENT_G || d[i+2] !== REPLACEMENT_B) return false;
+                    }
+                    return true;
+                };
+
+                // Top
+                if (!state.isTopLocked) {
+                    let found = false;
+                    for(let y = state.scannerYTop; y > state.scannerYTop - SCAN_SPEED; y--) {
+                        if (checkH(y)) { state.isTopLocked = true; state.lockedY1 = y; found = true; break; }
+                    }
+                    if (!found) { state.scannerYTop -= SCAN_SPEED; if (state.scannerYTop < 0) { state.isTopLocked = true; state.lockedY1 = 0; } }
+                }
+                // Bottom
+                if (!state.isBottomLocked) {
+                    let found = false;
+                    for(let y = state.scannerYBottom; y < state.scannerYBottom + SCAN_SPEED; y++) {
+                        if (checkH(y)) { state.isBottomLocked = true; state.lockedY2 = y; found = true; break; }
+                    }
+                    if (!found) { state.scannerYBottom += SCAN_SPEED; if (state.scannerYBottom > state.modifiedImageData.height) { state.isBottomLocked = true; state.lockedY2 = state.modifiedImageData.height; } }
+                }
+                // Left
+                if (!state.isLeftLocked) {
+                    let found = false;
+                    for(let x = state.scannerXLeft; x > state.scannerXLeft - SCAN_SPEED; x--) {
+                        if (checkV(x)) { state.isLeftLocked = true; state.lockedX1 = x; found = true; break; }
+                    }
+                    if (!found) { state.scannerXLeft -= SCAN_SPEED; if (state.scannerXLeft < 0) { state.isLeftLocked = true; state.lockedX1 = 0; } }
+                }
+                // Right
+                if (!state.isRightLocked) {
+                    let found = false;
+                    for(let x = state.scannerXRight; x < state.scannerXRight + SCAN_SPEED; x++) {
+                        if (checkV(x)) { state.isRightLocked = true; state.lockedX2 = x; found = true; break; }
+                    }
+                    if (!found) { state.scannerXRight += SCAN_SPEED; if (state.scannerXRight > state.modifiedImageData.width) { state.isRightLocked = true; state.lockedX2 = state.modifiedImageData.width; } }
+                }
+
+                // Draw Visuals
+                drawVisuals(index);
+
+                // Check Completion
+                if(state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked) {
+                    state.isScanning = false;
+                    document.getElementById(`btn-crop-${index}`).disabled = false;
+                    updateStatus(index, "Locked", "success");
+                    return;
+                }
+
+                state.animationFrameId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function drawVisuals(index) {
+            const state = imageStates[index];
+            const canvas = document.getElementById(`canvas-${index}`);
+            const ctx = canvas.getContext('2d');
+            
+            // Restore image
+            if(state.modifiedImageData) ctx.putImageData(state.modifiedImageData, 0, 0);
+
+            // Helpers
+            const hLine = (y, locked) => {
+                ctx.beginPath();
+                ctx.strokeStyle = locked ? H_LINE_COLOR : '#AAAAFF';
+                ctx.lineWidth = locked ? 3 : 1;
+                ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                if (locked) {
+                    ctx.beginPath();
+                    ctx.arc(canvas.width / 2, y, 6, 0, 2 * Math.PI); 
+                    ctx.fillStyle = H_LINE_COLOR; ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.stroke();
+                }
+            }
+            const vLine = (x, locked) => {
+                ctx.beginPath();
+                ctx.strokeStyle = locked ? V_LINE_COLOR : '#9988AA';
+                ctx.lineWidth = locked ? 3 : 1;
+                ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                 if (locked) {
+                    ctx.beginPath();
+                    ctx.arc(x, canvas.height / 2, 6, 0, 2 * Math.PI); 
+                    ctx.fillStyle = V_LINE_COLOR; ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.stroke();
+                }
+            }
+
+            hLine(state.isTopLocked ? state.lockedY1 : state.scannerYTop, state.isTopLocked);
+            hLine(state.isBottomLocked ? state.lockedY2 : state.scannerYBottom, state.isBottomLocked);
+            vLine(state.isLeftLocked ? state.lockedX1 : state.scannerXLeft, state.isLeftLocked);
+            vLine(state.isRightLocked ? state.lockedX2 : state.scannerXRight, state.isRightLocked);
+        }
+
+        // --- DRAG LOGIC (Per Index) ---
+
+        function getPos(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        function handleDragStart(e, index) {
+            const state = imageStates[index];
+            if (!state.modifiedImageData) return;
+            
+            if (state.isScanning) {
+                state.isScanning = false;
+                cancelAnimationFrame(state.animationFrameId);
+                updateStatus(index, "Paused", "neutral");
+            }
+
+            const canvas = document.getElementById(`canvas-${index}`);
+            const pos = getPos(e, canvas);
+
+            if (state.isTopLocked && Math.abs(pos.y - state.lockedY1) < DRAG_TOLERANCE) { state.draggingLine = 1; return; }
+            if (state.isBottomLocked && Math.abs(pos.y - state.lockedY2) < DRAG_TOLERANCE) { state.draggingLine = 2; return; }
+            if (state.isLeftLocked && Math.abs(pos.x - state.lockedX1) < DRAG_TOLERANCE) { state.draggingLine = 3; return; }
+            if (state.isRightLocked && Math.abs(pos.x - state.lockedX2) < DRAG_TOLERANCE) { state.draggingLine = 4; return; }
+        }
+
+        function handleDragMove(e, index) {
+            const state = imageStates[index];
+            if(state.draggingLine === 0) return;
+
+            const canvas = document.getElementById(`canvas-${index}`);
+            const pos = getPos(e, canvas);
+            const w = canvas.width;
+            const h = canvas.height;
+
+            if (state.draggingLine === 1) state.lockedY1 = Math.max(0, Math.min(h, pos.y));
+            if (state.draggingLine === 2) state.lockedY2 = Math.max(0, Math.min(h, pos.y));
+            if (state.draggingLine === 3) state.lockedX1 = Math.max(0, Math.min(w, pos.x));
+            if (state.draggingLine === 4) state.lockedX2 = Math.max(0, Math.min(w, pos.x));
+
+            drawVisuals(index);
+        }
+
+        function handleDragEnd(index) {
+            const state = imageStates[index];
+            state.draggingLine = 0;
+            // Ensure crop button is enabled if all locked
+            const allLocked = state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked;
+            document.getElementById(`btn-crop-${index}`).disabled = !allLocked;
+        }
+
+
+        // --- CROP & DOWNLOAD ---
+
+        function performCrop(index) {
+            const state = imageStates[index];
+            if (!state.modifiedImageData) return;
+
+            const y = Math.min(state.lockedY1, state.lockedY2);
+            const h = Math.abs(state.lockedY2 - state.lockedY1);
+            const x = Math.min(state.lockedX1, state.lockedX2);
+            const w = Math.abs(state.lockedX2 - state.lockedX1);
+
+            if (w < 1 || h < 1) return;
+
+            // 1. Update Canvas Visuals
+            const canvas = document.getElementById(`canvas-${index}`);
+            const ctx = canvas.getContext('2d');
+            const newData = ctx.getImageData(x, y, w, h);
+            canvas.width = w; 
+            canvas.height = h;
+            ctx.putImageData(newData, 0, 0);
+            state.modifiedImageData = newData;
+
+            // 2. Download Clean Copy
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w; tempCanvas.height = h;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(state.originalImage, x, y, w, h, 0, 0, w, h);
+
+            const file = imageFiles[index];
+            const parts = file.name.split('.');
+            const ext = parts.length > 1 ? parts.pop() : 'jpg'; 
+            const newName = `${parts.join('.')}_ayu.${ext}`;
+
+            tempCanvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = newName;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                
+                updateStatus(index, "Saved!", "success");
+            }, 'image/jpeg', 0.9);
+
+            // Disable controls after crop
+            state.isTopLocked = false; state.isBottomLocked = false;
+            document.getElementById(`btn-crop-${index}`).disabled = true;
+            document.getElementById(`btn-analyze-${index}`).disabled = false; // Allow restart via analyze
+        }
+
+    </script>
+</body>
+  </html>
