@@ -182,8 +182,10 @@
                 modifiedImageData: null,
                 isScanning: false,
                 animationFrameId: null,
-                // NOTE: We still track all four locks for manual cropping fallback
+                // Lock flags
                 isTopLocked: false, isBottomLocked: false, isLeftLocked: false, isRightLocked: false,
+                // NEW: Match flags to indicate a successful color find, not just hitting the edge
+                isTopMatched: false, isBottomMatched: false,
                 scannerYTop: 0, scannerYBottom: 0, scannerXLeft: 0, scannerXRight: 0,
                 lockedY1: -1, lockedY2: -1, lockedX1: -1, lockedX2: -1,
                 H_PROBE_X: [], V_PROBE_Y: [],
@@ -304,6 +306,7 @@
             // 1. Reset locks and clear any previous scan animation
             state.isTopLocked = false; state.isBottomLocked = false;
             state.isLeftLocked = false; state.isRightLocked = false;
+            state.isTopMatched = false; state.isBottomMatched = false; // Reset Match flags
             state.lockedY1 = -1; state.lockedY2 = -1; state.lockedX1 = -1; state.lockedX2 = -1;
             if(state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
 
@@ -375,22 +378,47 @@
                     return true;
                 };
 
-                // Scan Logic
+                // Scan Logic: Top
                 if (!state.isTopLocked) {
                     let found = false;
                     for(let y = state.scannerYTop; y > state.scannerYTop - SCAN_SPEED; y--) {
-                        if (checkH(y)) { state.isTopLocked = true; state.lockedY1 = y; found = true; break; }
+                        if (checkH(y)) { 
+                            state.isTopLocked = true; 
+                            state.isTopMatched = true; // <--- Match found!
+                            state.lockedY1 = y; 
+                            found = true; break; 
+                        }
                     }
-                    if (!found) { state.scannerYTop -= SCAN_SPEED; if (state.scannerYTop < 0) { state.isTopLocked = true; state.lockedY1 = 0; } }
+                    if (!found) { 
+                        state.scannerYTop -= SCAN_SPEED; 
+                        if (state.scannerYTop < 0) { 
+                            state.isTopLocked = true; 
+                            state.lockedY1 = 0; // Lock, but NO match
+                        } 
+                    }
                 }
+                
+                // Scan Logic: Bottom
                 if (!state.isBottomLocked) {
                     let found = false;
                     for(let y = state.scannerYBottom; y < state.scannerYBottom + SCAN_SPEED; y++) {
-                        if (checkH(y)) { state.isBottomLocked = true; state.lockedY2 = y; found = true; break; }
+                        if (checkH(y)) { 
+                            state.isBottomLocked = true; 
+                            state.isBottomMatched = true; // <--- Match found!
+                            state.lockedY2 = y; 
+                            found = true; break; 
+                        }
                     }
-                    if (!found) { state.scannerYBottom += SCAN_SPEED; if (state.scannerYBottom > state.modifiedImageData.height) { state.isBottomLocked = true; state.lockedY2 = state.modifiedImageData.height; } }
+                    if (!found) { 
+                        state.scannerYBottom += SCAN_SPEED; 
+                        if (state.scannerYBottom > state.modifiedImageData.height) { 
+                            state.isBottomLocked = true; 
+                            state.lockedY2 = state.modifiedImageData.height; // Lock, but NO match
+                        } 
+                    }
                 }
-                // Continue scanning Left/Right but DON'T use them for auto-crop trigger
+                
+                // Scan Logic: Left (Still scans, but doesn't trigger auto-advance)
                 if (!state.isLeftLocked) {
                     let found = false;
                     for(let x = state.scannerXLeft; x > state.scannerXLeft - SCAN_SPEED; x--) {
@@ -398,6 +426,8 @@
                     }
                     if (!found) { state.scannerXLeft -= SCAN_SPEED; if (state.scannerXLeft < 0) { state.isLeftLocked = true; state.lockedX1 = 0; } }
                 }
+                
+                // Scan Logic: Right (Still scans, but doesn't trigger auto-advance)
                 if (!state.isRightLocked) {
                     let found = false;
                     for(let x = state.scannerXRight; x < state.scannerXRight + SCAN_SPEED; x++) {
@@ -408,21 +438,22 @@
 
                 drawVisuals(index);
 
-                // --- MODIFIED AUTO-ADVANCE LOGIC: Trigger on Vertical Locks only ---
-                const isVerticallyLocked = state.isTopLocked && state.isBottomLocked;
+                // --- MODIFIED AUTO-ADVANCE LOGIC: Trigger on COLOR MATCHES only ---
+                const isAutoAdvanceTriggered = state.isTopMatched && state.isBottomMatched;
                 
-                if(isVerticallyLocked) {
+                if(isAutoAdvanceTriggered) {
                     state.isScanning = false;
                     // Auto-crop and advance to the next image
                     handleCrop(index, true); 
                     return;
                 }
                 
-                // Fallback: If scanner stops (no progress), but didn't find the necessary locks, enable manual crop.
+                // Fallback: If scanner stops (all locked), but didn't find the necessary matches, enable manual crop.
                 if (state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked) {
                     state.isScanning = false;
+                    // Only enable crop button if all four boundaries (including left/right) have been found/reached the edge.
                     document.getElementById(`btn-crop-${index}`).disabled = false;
-                    updateStatus(index, "Ready for manual crop.", "neutral");
+                    updateStatus(index, "Manual crop needed.", "neutral");
                     document.getElementById(`btn-analyze-${index}`).disabled = false;
                     return;
                 }
@@ -439,18 +470,26 @@
             
             if(state.modifiedImageData) ctx.putImageData(state.modifiedImageData, 0, 0);
 
-            const hLine = (y, locked) => {
+            // Helper to draw Horizontal Line
+            const hLine = (y, locked, matched) => {
                 ctx.beginPath();
-                ctx.strokeStyle = locked ? H_LINE_COLOR : '#AAAAFF';
-                ctx.lineWidth = locked ? 3 : 1;
+                // If matched, use bold blue. If locked but NOT matched (hit edge), use dashed gray.
+                ctx.strokeStyle = matched ? H_LINE_COLOR : (locked ? 'rgba(150, 150, 150, 0.5)' : '#AAAAFF');
+                ctx.lineWidth = matched ? 3 : 1;
+                if(locked && !matched) ctx.setLineDash([5, 5]); // Dashed line for boundary reach
                 ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                ctx.setLineDash([]); // Reset line dash
+                
                 if (locked) {
                     ctx.beginPath();
                     ctx.arc(canvas.width / 2, y, 6, 0, 2 * Math.PI); 
-                    ctx.fillStyle = H_LINE_COLOR; ctx.fill();
+                    ctx.fillStyle = matched ? H_LINE_COLOR : 'gray'; // Dot color based on match
+                    ctx.fill();
                     ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.stroke();
                 }
             }
+            
+            // Helper to draw Vertical Line
             const vLine = (x, locked) => {
                 ctx.beginPath();
                 ctx.strokeStyle = locked ? V_LINE_COLOR : '#9988AA';
@@ -464,8 +503,8 @@
                 }
             }
 
-            hLine(state.isTopLocked ? state.lockedY1 : state.scannerYTop, state.isTopLocked);
-            hLine(state.isBottomLocked ? state.lockedY2 : state.scannerYBottom, state.isBottomLocked);
+            hLine(state.isTopLocked ? state.lockedY1 : state.scannerYTop, state.isTopLocked, state.isTopMatched);
+            hLine(state.isBottomLocked ? state.lockedY2 : state.scannerYBottom, state.isBottomLocked, state.isBottomMatched);
             vLine(state.isLeftLocked ? state.lockedX1 : state.scannerXLeft, state.isLeftLocked);
             vLine(state.isRightLocked ? state.lockedX2 : state.scannerXRight, state.isRightLocked);
         }
@@ -495,6 +534,7 @@
             const canvas = document.getElementById(`canvas-${index}`);
             const pos = getPos(e, canvas);
 
+            // Allow dragging if line is locked (matched OR hit boundary)
             if (state.isTopLocked && Math.abs(pos.y - state.lockedY1) < DRAG_TOLERANCE) { state.draggingLine = 1; return; }
             if (state.isBottomLocked && Math.abs(pos.y - state.lockedY2) < DRAG_TOLERANCE) { state.draggingLine = 2; return; }
             if (state.isLeftLocked && Math.abs(pos.x - state.lockedX1) < DRAG_TOLERANCE) { state.draggingLine = 3; return; }
@@ -510,18 +550,25 @@
             const w = canvas.width;
             const h = canvas.height;
 
-            if (state.draggingLine === 1) state.lockedY1 = Math.max(0, Math.min(h, pos.y));
-            if (state.draggingLine === 2) state.lockedY2 = Math.max(0, Math.min(h, pos.y));
-            if (state.draggingLine === 3) state.lockedX1 = Math.max(0, Math.min(w, pos.x));
-            if (state.draggingLine === 4) state.lockedX2 = Math.max(0, Math.min(w, pos.x));
+            // When dragging, we are manually setting the lock position, so we assume it's "matched"
+            if (state.draggingLine === 1) { state.lockedY1 = Math.max(0, Math.min(h, pos.y)); state.isTopMatched = true; }
+            if (state.draggingLine === 2) { state.lockedY2 = Math.max(0, Math.min(h, pos.y)); state.isBottomMatched = true; }
+            if (state.draggingLine === 3) { state.lockedX1 = Math.max(0, Math.min(w, pos.x)); }
+            if (state.draggingLine === 4) { state.lockedX2 = Math.max(0, Math.min(w, pos.x)); }
 
+            // Set locks explicitly when dragging since the loop is paused
+            state.isTopLocked = true;
+            state.isBottomLocked = true;
+            state.isLeftLocked = true;
+            state.isRightLocked = true;
+            
             drawVisuals(index);
         }
 
         function handleDragEnd(index) {
             const state = imageStates[index];
             state.draggingLine = 0;
-            // Crop button enabled only if ALL four are locked (for manual cropping)
+            // Crop button enabled only if ALL four are locked (now they are all locked from dragMove)
             const allLocked = state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked;
             document.getElementById(`btn-crop-${index}`).disabled = !allLocked;
         }
@@ -531,11 +578,18 @@
 
         function handleCrop(index, autoAdvance = false) {
             const state = imageStates[index];
-            // For manual crop, require all four locks. For auto-crop, we rely on the function being called 
-            // from startScanLoop which checks the two vertical locks.
-            if (!state.modifiedImageData || (!autoAdvance && !(state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked))) return;
+            
+            // Check required lock status
+            const isManuallyReady = state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked;
+            const isAutoReady = autoAdvance && state.isTopMatched && state.isBottomMatched; // Only check matches for auto-mode
 
-            // Use ALL four locks' positions for the actual crop boundaries, even in auto-mode
+            if (!state.modifiedImageData || (!isManuallyReady && !isAutoReady)) return;
+
+            // Ensure the horizontal locks (Y1, Y2) are valid for auto-crop
+            if(autoAdvance && (!state.isTopMatched || !state.isBottomMatched)) return;
+
+
+            // Use ALL four locks' positions for the actual crop boundaries
             const y = Math.min(state.lockedY1, state.lockedY2);
             const h = Math.abs(state.lockedY2 - state.lockedY1);
             const x = Math.min(state.lockedX1, state.lockedX2);
@@ -584,11 +638,12 @@
                 if (autoAdvance) {
                     const nextIndex = index + 1;
                     if (nextIndex < imageFiles.length) {
-                        updateStatus(index, `Saved. Processing #${nextIndex + 1}...`, "success");
-                        // Start the process on the next image immediately
-                        startAnalysis(nextIndex); 
+                        // Use a short delay to ensure UI updates and file saving starts before next scan
+                        setTimeout(() => {
+                            startAnalysis(nextIndex); 
+                        }, 50); 
                     } else {
-                        updateStatus(index, "BATCH COMPLETE.", "success");
+                        updateStatus(index, "BATCH COMPLETE. 🎉", "success");
                     }
                 }
             }, 'image/jpeg', 0.9);
@@ -601,4 +656,4 @@
 
     </script>
 </body>
-  </html>
+</html>
