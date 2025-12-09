@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>EzeeMe Notes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -65,19 +64,7 @@
       pointer-events: none;
     }
 
-    .page { 
-      position: relative;
-      /* Add a class to indicate loading state for initial hidden state if needed */
-      min-height: 100vh; /* Ensure some height for observer to work on initially */
-    }
-    
-    /* NEW: Loader element style */
-    .loader {
-        text-align: center;
-        padding: 20px;
-        font-size: 1.2em;
-        color: #888;
-    }
+    .page { position: relative; }
 
     .watermark-bottom {
       position: absolute;
@@ -109,10 +96,8 @@
     }
 
     @keyframes floatY {
-      0%, 100% { transform: translateY(-50%);
-      }
-      50% { transform: translateY(calc(-50% - 1cm));
-      }
+      0%, 100% { transform: translateY(-50%); }
+      50% { transform: translateY(calc(-50% - 1cm)); }
     }
 
     .watermark-vertical-third {
@@ -137,8 +122,7 @@
       padding-right: 15px;
     }
 
-    #widthRange { margin-left: 8px;
-    }
+    #widthRange { margin-left: 8px; }
 
     .watermark-bottom,
     .watermark-left-center,
@@ -153,18 +137,21 @@
       background-color: #eeeeee;
     }
 
+    /* Sentinel element for infinite scroll detection */
+    #scroll-sentinel {
+      width: 100%;
+      height: 20px;
+      background: transparent;
+    }
+
     @media (orientation: portrait) {
-      .imagecontainer { width: 90%;
-      }
-      .space_box { width: 90%;
-      }
+      .imagecontainer { width: 90%; }
+      .space_box { width: 90%; }
     }
 
     @media (orientation: landscape) {
-      .imagecontainer { width: 60%;
-      }
-      .space_box { width: 60%;
-      }
+      .imagecontainer { width: 60%; }
+      .space_box { width: 60%; }
     }
   </style>
 </head>
@@ -183,9 +170,8 @@
 
   <main>
     <div class="space_box"></div>
-    <div class="imagecontainer" id="images">
-      </div>
-    <div id="loader" class="loader">Loading more images...</div>
+    <div class="imagecontainer" id="images"></div>
+    <div id="scroll-sentinel"></div>
     <div class="watermark-vertical-third" id="fixedWatermark">EzeeMeBot</div>
   </main>
 
@@ -198,26 +184,19 @@
     const chapters = {
       'chapter1': [
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,52,57,52,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,52,54,54,98,113,106,123,104,117,58,49,109,115,106],
-        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,52,56,58,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,52,57,57,98,103,110,100,115,123,118,49,109,115,106],
-        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,52,57,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,52,56,59,98,113,123,109,101,121,54,49,109,115,106],
+        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,52,56,58,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,52,55,57,98,103,110,100,115,123,118,49,109,115,106],
+        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,52,55,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,52,56,59,98,113,123,109,101,121,54,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,54,59,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,52,51,98,112,100,121,120,120,101,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,56,51,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,53,55,98,109,115,119,58,112,114,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,57,56,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,54,55,98,109,107,104,112,100,118,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,53,59,58,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,55,57,98,113,119,115,103,56,106,49,109,115,106],
-        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,54,51,57,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,56,59,98,103,118,102,101,124,124,49,109,115,106],
+        [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,54,51,55,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,53,56,59,98,103,118,102,101,124,124,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,54,52,58,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,54,51,60,98,122,102,109,116,104,117,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,54,53,59,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,54,53,51,98,101,115,60,116,124,119,49,109,115,106],
         [107,119,119,115,118,61,50,50,117,104,118,49,102,111,114,120,103,108,113,100,117,124,49,102,114,112,50,103,101,109,104,108,121,102,121,123,50,108,112,100,106,104,50,120,115,111,114,100,103,50,121,52,58,56,53,60,55,55,54,54,58,50,76,80,74,98,53,51,53,56,51,58,52,60,98,53,53,53,55,54,57,98,119,122,102,103,118,56,49,109,115,106]
       ],
       'chapter2': []
     };
-    
-    // NEW: Variables for lazy loading
-    const IMAGES_PER_LOAD = 5;
-    let imagesLoadedCount = 0;
-    let allImages = []; // Array to hold all encoded image data for the current chapter
-    let isLoading = false; // Flag to prevent multiple concurrent loads
-    let hasMoreImages = true;
 
     // Hex to string
     function hexToString(hex) {
@@ -231,18 +210,31 @@
     const whereis = new URLSearchParams(window.location.search);
     const incriptedata = whereis.get("inc");
     let chapter = 'chapter1';
+    
     if (incriptedata) {
-      try { chapter = hexToString(incriptedata);
-      }
-      catch(e) { console.error("Hex decode failed:", e);
-      }
+      try { chapter = hexToString(incriptedata); }
+      catch(e) { console.error("Hex decode failed:", e); }
     }
 
     const container = document.getElementById('images');
-    const loader = document.getElementById('loader');
+    
+    // --- LAZY LOAD IMPLEMENTATION ---
+    let currentImageIndex = 0;
+    const batchSize = 5;
+    const currentChapterData = chapters[chapter] || [];
 
-    // NEW FUNCTION: Creates and appends a single image page
-    function createImagePage(encodedArr) {
+    // Function to load the next batch of images
+    function loadNextBatch() {
+      if (currentImageIndex >= currentChapterData.length) {
+        // Stop observing if we reached the end
+        if(observer) observer.disconnect();
+        return;
+      }
+
+      const end = Math.min(currentImageIndex + batchSize, currentChapterData.length);
+      const batch = currentChapterData.slice(currentImageIndex, end);
+
+      batch.forEach(encodedArr => {
         const url = decodeUrl(encodedArr);
         const page = document.createElement('div');
         page.className = 'page';
@@ -261,91 +253,45 @@
         page.appendChild(img);
         page.appendChild(watermarkBottom);
         page.appendChild(watermarkLeftCenter);
+
         container.appendChild(page);
-    }
-    
-    // NEW FUNCTION: Loads a batch of images
-    function loadNextImages() {
-        if (isLoading || !hasMoreImages) return;
-        isLoading = true;
-        loader.textContent = 'Loading more images...'; // Reset loader text
+      });
 
-        const startIndex = imagesLoadedCount;
-        const endIndex = startIndex + IMAGES_PER_LOAD;
-        const batch = allImages.slice(startIndex, endIndex);
-
-        if (batch.length === 0) {
-            hasMoreImages = false;
-            observer.unobserve(loader);
-            loader.textContent = 'End of chapter.';
-            isLoading = false;
-            return;
-        }
-
-        batch.forEach(encodedArr => {
-            createImagePage(encodedArr);
-            imagesLoadedCount++;
-        });
-
-        isLoading = false;
-        
-        // Re-observe the loader if there might be more images
-        if (imagesLoadedCount < allImages.length) {
-            // Unobserve the old target (if any) and observe the loader again.
-            // Since the loader is a fixed element, we don't need to unobserve/re-observe,
-            // but we must call `positionVerticalWatermark()` because new content may change scroll height.
-            positionVerticalWatermark(); 
-        } else {
-            hasMoreImages = false;
-            observer.unobserve(loader);
-            loader.textContent = 'End of chapter.';
-        }
-        
-        // Important: Re-apply widths and watermarks after adding new images
-        applyWidth(); 
+      currentImageIndex += batch.length;
+      
+      // Update watermark sizes for the new elements
+      resizeWatermarks();
     }
 
-    // Initialize allImages array and start observer
-    if (chapters[chapter]) {
-        allImages = chapters[chapter];
-        loadNextImages(); // Load first 5 images on page load
-    } else {
-        hasMoreImages = false;
-        loader.textContent = 'No content found for this chapter.';
+    // Set up Intersection Observer for scrolling
+    const sentinel = document.getElementById('scroll-sentinel');
+    const observer = new IntersectionObserver((entries) => {
+      // If the sentinel is visible, load more
+      if (entries[0].isIntersecting) {
+        loadNextBatch();
+      }
+    }, {
+      rootMargin: '200px' // Start loading 200px before reaching the exact bottom
+    });
+
+    // Initial load: start observer and load first batch
+    if (currentChapterData.length > 0) {
+      loadNextBatch(); // Load first 5 immediately
+      observer.observe(sentinel); // Watch for scrolling
     }
-
-    // NEW: Intersection Observer setup
-    const observerOptions = {
-      root: null, // viewport
-      rootMargin: '200px', // start loading when the loader is 200px away
-      threshold: 0.0
-    };
-
-    const observer = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && hasMoreImages && !isLoading) {
-                // The loader is visible, load the next batch
-                loadNextImages();
-            }
-        });
-    }, observerOptions);
-
-    // Start observing the loader element
-    if (hasMoreImages) {
-        observer.observe(loader);
-    }
-    // END NEW LAZY LOADING LOGIC
+    // -------------------------------
 
     // Prevent right-click and drag
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('dragstart', event => event.preventDefault());
 
     function resizeWatermarks() {
-      const container = document.querySelector('.space_box');
-      if (!container) return;
-      const containerWidth = container.offsetWidth;
+      const containerBox = document.querySelector('.space_box');
+      if (!containerBox) return;
+      const containerWidth = containerBox.offsetWidth;
       const fontSize = containerWidth * 0.05;
       const fontSize2 = containerWidth * 0.03;
+
       document.querySelectorAll('.watermark-vertical-third').forEach(wm => {
         wm.style.fontSize = fontSize + 'px';
       });
@@ -358,12 +304,11 @@
     }
 
     function positionVerticalWatermark() {
-      const container = document.querySelector('.space_box');
+      const containerBox = document.querySelector('.space_box');
       const wm = document.getElementById('fixedWatermark');
-      if (!container || !wm) return;
-      const rect = container.getBoundingClientRect();
-      // The vertical watermark position logic remains the same
-      const leftPos = rect.left + rect.width * 0.67; 
+      if (!containerBox || !wm) return;
+      const rect = containerBox.getBoundingClientRect();
+      const leftPos = rect.left + rect.width * 0.67;
       wm.style.left = leftPos + 'px';
     }
 
@@ -377,19 +322,13 @@
       landscape: { min: 55, max: 95, def: 65 }
     };
 
-    // Determine orientation reliably:
-    // 1) Prefer screen.orientation if available
-    // 2) Fallback to viewport comparison
     function getOrientation() {
       const so = (screen.orientation && screen.orientation.type) ||
-      screen.msOrientation || screen.mozOrientation || screen.webkitOrientation;
+        screen.msOrientation || screen.mozOrientation || screen.webkitOrientation;
       if (typeof so === 'string') {
-        return so.includes('portrait') ?
-        'portrait' : 'landscape';
+        return so.includes('portrait') ? 'portrait' : 'landscape';
       }
-      // iOS Safari fallback: compare dimensions
-      return window.innerHeight >= window.innerWidth ?
-      'portrait' : 'landscape';
+      return window.innerHeight >= window.innerWidth ? 'portrait' : 'landscape';
     }
 
     let currentOrientation = getOrientation();
@@ -406,27 +345,22 @@
 
     function setRangeLimitsAndDefault(mode, { forceDefault = false } = {}) {
       const { min, max, def } = limits[mode];
-      // Set limits
       widthRange.min = String(min);
       widthRange.max = String(max);
-      // Choose value
+      
       const current = Number(widthRange.value);
       let nextVal;
       if (forceDefault || Number.isNaN(current) || widthRange.value === '') {
         nextVal = def;
-      // explicit default
       } else {
         nextVal = Math.min(max, Math.max(min, current));
-      // clamp
       }
 
       widthRange.value = String(nextVal);
       applyWidth();
     }
 
-    // Debounced orientation handler for resize thrash
     let resizeTimer = null;
-
     function onPossibleOrientationChange({ forceDefault = false } = {}) {
       const newOrientation = getOrientation();
       if (newOrientation !== currentOrientation) {
@@ -435,7 +369,6 @@
       }
     }
 
-    // Initial load: enforce defaults first, then layout adjustments
     window.addEventListener('DOMContentLoaded', () => {
       currentOrientation = getOrientation();
       setRangeLimitsAndDefault(currentOrientation, { forceDefault: true });
@@ -443,7 +376,6 @@
       positionVerticalWatermark();
     });
 
-    // screen.orientation change (modern Android/Chrome)
     if (screen.orientation && typeof screen.orientation.addEventListener === 'function') {
       screen.orientation.addEventListener('change', () => {
         onPossibleOrientationChange({ forceDefault: true });
@@ -452,22 +384,18 @@
       screen.orientation.onchange = () => onPossibleOrientationChange({ forceDefault: true });
     }
 
-    // Window orientationchange (older mobile browsers)
     window.addEventListener('orientationchange', () => {
       onPossibleOrientationChange({ forceDefault: true });
     });
 
-    // Resize fallback (iOS Safari often only fires resize)
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => onPossibleOrientationChange({ forceDefault: true }), 120);
-      // Keep watermarks responsive even when orientation doesn't change
       resizeWatermarks();
       positionVerticalWatermark();
     });
 
-    // Slider interaction
     widthRange.addEventListener('input', applyWidth);
   </script>
 </body>
-  </html>
+</html>
