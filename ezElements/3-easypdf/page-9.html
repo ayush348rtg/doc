@@ -273,7 +273,7 @@ for (let i = 0; i < hex.length; i += 2) {
 }
 const wM_not_found = document.getElementById('wM_not_found');
 const whereis = new URLSearchParams(window.location.search);
-const incriptedata = whereis.get("inc") || "7b22636861707465725f696e646578223a226368617074657231222c2265785f74696d65223a313736353334363539317d";
+const incriptedata = whereis.get("inc") || "7b7d";
 
 let chapter = 'chapter0';
 let time_ex = 1765341404;
@@ -313,8 +313,7 @@ if (Array.isArray(chapterData) && chapterData.length === 0) {
   if (wm) {
     wm.style.display = "none";
   }});
-}
-
+} else {
 const current_is = Math.floor(Date.now() / 1000);
 const is_vailid_time = time_ex - current_is;
 if (time_ex < current_is) { // when it is neagtive
@@ -339,7 +338,7 @@ if (time_ex < current_is) { // when it is neagtive
 }
 checkTime();
 }
-
+}
 // 1. Observer to UNLOAD images far off-screen (Save Memory)
 const cleanupObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
