@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scroll Sensitive Back Button</title>
+  <style>
+    .bck_circle-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s, opacity 0.3s;
+      
+      /* Fixed position */
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      
+      /* Start visible */
+      opacity: 1;
+    }
+.bck_circle-btn:focus,
+.bck_circle-btn:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.4);
+  border-radius: 50%;
+}
+
+
+    .bck_circle-btn.bck_hidden {
+      opacity: 0;
+      pointer-events: none; /* prevent clicks when hidden */
+    }
+    .bck_circle-btn:hover {
+      background-color: #ddd;
+    }
+    .bck_circle-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scroll down to test the button</h1>
+  <p style="height:2000px;">Lots of content here...</p>
+
+  <button id="bck_backBtn" class="bck_circle-btn" onclick="window.history.back()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 19-7-7 7-7"/>
+    </svg>
+  </button>
+
+  <script>
+    let bck_lastScrollTop = 0;
+    const bck_backBtn = document.getElementById('bck_backBtn');
+    window.addEventListener('scroll', function() {
+      let bck_st = window.pageYOffset || document.documentElement.scrollTop;
+      if (bck_st > bck_lastScrollTop) {
+        // scrolling down
+        bck_backBtn.classList.add('bck_hidden');
+      } else {
+        // scrolling up
+        bck_backBtn.classList.remove('bck_hidden');
+      }
+      bck_lastScrollTop = bck_st <= 0 ? 0 : bck_st;
+    }, false);
+  </script>
+</body>
+</html>
