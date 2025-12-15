@@ -2,46 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Protected Images with Transparent SVG</title>
+  <title>Image Layer Example</title>
   <style>
-    .image-protect {
+    .image-stack {
       position: relative;
       display: inline-block;
       margin: 20px;
     }
 
-    .image-protect img {
+    /* Visible image (background layer) */
+    .image-stack .visible {
       display: block;
-      width: 400px; /* adjust size as needed */
+      width: 400px;
       height: auto;
-      user-select: none;       /* prevent selection */
-      pointer-events: none;    /* block direct interaction */
+      user-select: none;
+      pointer-events: none; /* prevent direct interaction */
     }
 
-    .overlay {
+    /* Hidden image overlay (invisible but selectable) */
+    .image-stack .hidden {
       position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      cursor: default;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0;              /* invisible */
+      pointer-events: auto;    /* intercept clicks/selections */
     }
   </style>
 </head>
 <body>
-  <!-- First image -->
-  <div class="image-protect">
-    <img src="https://res.cloudinary.com/dqg4lukez/image/upload/v1761231178/samples/outdoor-woman.jpg" alt="Outdoor Woman" draggable="false">
-    <svg class="overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <rect x="0" y="0" width="100" height="100" fill="none" pointer-events="all"/>
-    </svg>
-  </div>
+  <div class="image-stack">
+    <!-- Visible image -->
+    <img class="visible"
+         src="https://res.cloudinary.com/dqg4lukez/image/upload/v1761231179/samples/coffee.jpg"
+         alt="Coffee">
 
-  <!-- Second image -->
-  <div class="image-protect">
-    <img src="https://res.cloudinary.com/dqg4lukez/image/upload/v1761231179/samples/coffee.jpg" alt="Coffee" draggable="false">
-    <svg class="overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <rect x="0" y="0" width="100" height="100" fill="none" pointer-events="all"/>
-    </svg>
+    <!-- Hidden image (invisible but selectable) -->
+    <img class="hidden"
+         src="https://res.cloudinary.com/dqg4lukez/image/upload/v1761231178/samples/outdoor-woman.jpg"
+         alt="Outdoor Woman">
   </div>
 </body>
 </html>
