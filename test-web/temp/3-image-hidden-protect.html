@@ -54,15 +54,15 @@
       position: relative;
     }
 
-    .imagecontainer img {
+    /* The Real Content Image (Visible but Unclickable) */
+    .imagecontainer img.real-content {
       display: block;
       width: 100%;
       height: auto;
       margin: 0;
       user-select: none;
       -webkit-user-drag: none;
-      /* Feature 1: Disabling Pointer Events on Visible Image */
-      pointer-events: none; 
+      pointer-events: none; /* Clicks pass through this */
     }
 
     .page {
@@ -70,16 +70,17 @@
       margin-bottom: 0;
     }
 
-    /* Feature 2: Styles for the Invisible Overlay */
-    .protection-overlay {
+    /* Feature 2: Styles for the Hidden Trap Image */
+    .hidden-trap-image {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 50; /* Sits above the image */
-      background-color: transparent; /* Invisible */
+      z-index: 50; /* Sits above the real image */
+      opacity: 0; /* Makes it invisible to the eye */
       pointer-events: auto; /* Intercepts clicks and drags */
+      object-fit: fill; /* Ensures it stretches to cover the whole page */
     }
 
     .watermark-bottom {
@@ -94,7 +95,7 @@
       white-space: nowrap;
       font-family: "Stack Sans Notch", sans-serif;
       font-weight: 700;
-      z-index: 60; /* Above overlay */
+      z-index: 60; /* Above trap image */
     }
 
     .watermark-left-center {
@@ -110,7 +111,7 @@
       white-space: nowrap;
       animation: floatY 4s ease-in-out infinite;
       font-family: "Stack Sans Notch", sans-serif;
-      z-index: 60; /* Above overlay */
+      z-index: 60; /* Above trap image */
     }
     
     .watermark-page-index {
@@ -374,22 +375,22 @@ checkTime();
 const cleanupObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     const page = entry.target;
-    const img = page.querySelector('img');
-    if (!img) return;
+    const realImg = page.querySelector('img.real-content');
+    if (!realImg) return;
     if (entry.isIntersecting) {
       // ENTERING VIEW: Restore Image
-      if (!img.getAttribute('src')) {
-        img.src = img.dataset.src;
+      if (!realImg.getAttribute('src')) {
+        realImg.src = realImg.dataset.src;
         // Remove fixed height so it can resize responsively
         page.style.height = 'auto';
       }
     } else {
       // LEAVING VIEW: Unload Image (if it was loaded)
-      if (img.getAttribute('src')) {
+      if (realImg.getAttribute('src')) {
         // Lock the container height to prevent scroll jumping
         page.style.height = page.offsetHeight + 'px';
         // Free memory
-        img.removeAttribute('src');
+        realImg.removeAttribute('src');
       
     }
     }
@@ -413,17 +414,20 @@ function createPageElement(encodedArr, index) {
   const page = document.createElement('div');
   page.className = 'page';
   
+  // 1. THE REAL CONTENT IMAGE
   const img = document.createElement('img');
   img.dataset.src = url; // Store URL in data attribute
-  // Load initially for the first batch, rely on observer for subsequent batches
   img.src = url; 
   img.alt = "EzeeMe Page";
+  img.className = 'real-content';
   
-  // --- FEATURE 2: Create the invisible protection overlay ---
-  const overlay = document.createElement('div');
-  overlay.className = 'protection-overlay';
-  // Prevent context menu specifically on the overlay
-  overlay.addEventListener('contextmenu', e => e.preventDefault());
+  // 2. THE HIDDEN TRAP IMAGE (Replaces div overlay)
+  const trapImage = document.createElement('img');
+  trapImage.src = "https://res.cloudinary.com/dqg4lukez/image/upload/v1761231178/samples/outdoor-woman.jpg";
+  trapImage.className = 'hidden-trap-image';
+  trapImage.alt = "Protected Content"; 
+  // We allow context menu on this specific element so if global JS fails, 
+  // the user "successfully" downloads this trap image.
   
   // Recreate Watermarks
   const watermarkBottom = document.createElement('div');
@@ -439,9 +443,9 @@ function createPageElement(encodedArr, index) {
   watermarkPageIndex.className = 'watermark-page-index';
   watermarkPageIndex.textContent = `${index + 1} / ${totalImages}`;
   
-  page.appendChild(img);
-  page.appendChild(overlay); // Add overlay after image (so it sits on top)
-  page.appendChild(watermarkBottom);
+  page.appendChild(img);        // Bottom layer: Real Content
+  page.appendChild(trapImage);  // Middle layer: Hidden Trap Image
+  page.appendChild(watermarkBottom); // Top: Watermarks (click-through)
   page.appendChild(watermarkLeftCenter);
   page.appendChild(watermarkPageIndex);
   
@@ -491,7 +495,8 @@ if (chapterData.length > 0) {
 } else {
     spinner.style.display = 'none';
 }
-    // Prevent right-click and drag
+    // Prevent right-click and drag GLOBALLY (First line of defense)
+    // If this is bypassed, the Trap Image is the second line of defense.
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('dragstart', event => event.preventDefault());
 
