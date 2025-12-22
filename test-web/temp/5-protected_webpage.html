@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Protected Image Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Try to reduce Reader-mode triggers (not guaranteed) -->
+  <meta name="robots" content="noarchive,noimageindex" />
+  <style>
+    /* Base layout */
+    :root {
+      --bg: #0b0f14;
+      --fg: #e6e9ee;
+      --muted: #9aa4b2;
+      --accent: #50c8ff;
+      --watermark: rgba(255,255,255,0.08);
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    }
+    .wrap {
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+    header, footer {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    header { position: sticky; top: 0; backdrop-filter: blur(6px); }
+    footer { border-top: 1px solid rgba(255,255,255,0.06); border-bottom: none; }
+    .content {
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    /* Protected container with overlay and watermark */
+    .protected-box {
+      position: relative;
+      max-width: min(92vw, 900px);
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #11161c;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+      overflow: hidden;
+      /* Disable selection and drag at container level */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Canvas fills box */
+    canvas#protectedCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Transparent overlay intercepts clicks, drag, context menu */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: auto;
+      /* Invisible but active */
+      background: transparent;
+    }
+
+    /* Watermark layer (subtle, repeated diagonals) */
+    .watermark {
+      position: absolute;
+      inset: 0;
+      pointer-events: none; /* Only visual */
+      background-image:
+        radial-gradient(circle at 25% 25%, transparent 0 18px, var(--watermark) 19px, transparent 20px),
+        radial-gradient(circle at 75% 75%, transparent 0 18px, var(--watermark) 19px, transparent 20px);
+      background-size: 180px 180px;
+      mix-blend-mode: lighten;
+    }
+    .watermark-text {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: grid;
+      place-items: center;
+      opacity: 0.12;
+      transform: rotate(-18deg);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-size: clamp(18px, 4vw, 28px);
+    }
+
+    /* Disable printing (page renders blank) */
+    @media print {
+      body { display: none !important; }
+    }
+
+    /* Accessibility note area */
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Generic controls (non-functional, just informative) */
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(80,200,255,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(80,200,255,0.25);
+      font-size: 12px;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- NoScript fallback: show a blocking overlay requiring JS -->
+  <noscript>
+    <div style="position:fixed;inset:0;background:#0b0f14;color:#e6e9ee;display:grid;place-items:center;z-index:99999;">
+      <div style="max-width:560px;padding:24px;border:1px solid rgba(255,255,255,0.12);border-radius:12px;background:#11161c;">
+        <h2 style="margin:0 0 10px 0;">JavaScript required</h2>
+        <p style="margin:0 0 10px 0;">This page uses active protections against copying and saving. Please enable JavaScript to view the image.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <div class="wrap">
+    <header>
+      <strong>Protected Image Viewer</strong>
+      <div class="note">
+        <span class="badge">Right-click blocked</span>
+        <span class="badge">Drag blocked</span>
+        <span class="badge">Hotkeys blocked</span>
+        <span class="badge">Print blocked</span>
+        <span class="badge">DevTools shortcuts blocked</span>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="protected-box" id="protectedBox" aria-label="Protected image container" role="figure">
+        <!-- Canvas rendering instead of <img> -->
+        <canvas id="protectedCanvas"></canvas>
+
+        <!-- Transparent overlay intercepts interaction -->
+        <div class="overlay" id="overlay" aria-hidden="true"></div>
+
+        <!-- Watermark layers -->
+        <div class="watermark" aria-hidden="true"></div>
+        <div class="watermark-text" aria-hidden="true">Ayu • Protected Content</div>
+      </section>
+      <p class="note">Tip: High‑res originals should be served via signed URLs or behind authentication for stronger protection.</p>
+    </main>
+
+    <footer>
+      <small>Layered protections deter casual copying. Screenshots are always possible; watermarking keeps attribution.</small>
+    </footer>
+  </div>
+
+  <script>
+    // -------------------------------
+    // CONFIG
+    // -------------------------------
+    const IMAGE_URL = "https://res.cloudinary.com/dgf9ntio0/image/upload/v1765708298/kmc_20251214_155903_xfd8lt.png";
+
+    // -------------------------------
+    // Canvas rendering (prevents easy Save/Drag)
+    // -------------------------------
+    (function renderToCanvas() {
+      const canvas = document.getElementById("protectedCanvas");
+      const ctx = canvas.getContext("2d");
+      const box = document.getElementById("protectedBox");
+
+      function resizeCanvas() {
+        const rect = box.getBoundingClientRect();
+        // Use devicePixelRatio to keep quality while scaling
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        canvas.style.width = rect.width + "px";
+        canvas.style.height = rect.height + "px";
+        if (ctx._img) drawImage(ctx._img);
+      }
+
+      function drawImage(img) {
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Clear
+        ctx.clearRect(0, 0, w, h);
+
+        // Fit image cover (center-crop behavior)
+        const iw = img.naturalWidth;
+        const ih = img.naturalHeight;
+        const scale = Math.max(w / iw, h / ih);
+        const dw = Math.floor(iw * scale);
+        const dh = Math.floor(ih * scale);
+        const dx = Math.floor((w - dw) / 2);
+        const dy = Math.floor((h - dh) / 2);
+
+        // Draw image
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, dx, dy, dw, dh);
+
+        // Optional: faint overlay pattern to reduce clean screenshots
+        ctx.fillStyle = "rgba(255,255,255,0.03)";
+        for (let y = 0; y < h; y += 22) {
+          ctx.fillRect(0, y, w, 1);
+        }
+      }
+
+      const img = new Image();
+      // Prevent canvas tainting if served cross-origin with proper headers
+      img.crossOrigin = "anonymous";
+      img.decoding = "async";
+      img.loading = "eager";
+      img.addEventListener("load", () => {
+        ctx._img = img;
+        resizeCanvas();
+      });
+      img.src = IMAGE_URL;
+
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("orientationchange", resizeCanvas);
+    })();
+
+    // -------------------------------
+    // Transparent overlay: block interaction
+    // -------------------------------
+    (function overlayGuards() {
+      const overlay = document.getElementById("overlay");
+      ["contextmenu","mousedown","mouseup","click","dblclick","auxclick","dragstart"].forEach(evt => {
+        overlay.addEventListener(evt, e => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, { capture: true });
+      });
+      // Make sure overlay captures pointer events
+      overlay.style.pointerEvents = "auto";
+    })();
+
+    // -------------------------------
+    // Global interaction guards
+    // -------------------------------
+
+    // Block right-click everywhere
+    document.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { capture: true });
+
+    // Disable selection globally
+    document.addEventListener("selectstart", e => {
+      e.preventDefault();
+    }, { capture: true });
+
+    // Block drag anywhere
+    document.addEventListener("dragstart", e => {
+      e.preventDefault();
+    }, { capture: true });
+
+    // Block paste actions
+    document.addEventListener("paste", e => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { capture: true });
+
+    // Block printing shortcuts (Ctrl/Cmd+P). Printing is also disabled via @media print
+    document.addEventListener("keydown", e => {
+      const k = e.key.toLowerCase();
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+
+      // Common copy/save/source/print/devtools shortcuts
+      const blockedCombos = [
+        { key: "a", when: ctrlOrMeta }, // Select All
+        { key: "c", when: ctrlOrMeta }, // Copy
+        { key: "x", when: ctrlOrMeta }, // Cut
+        { key: "v", when: ctrlOrMeta }, // Paste
+        { key: "s", when: ctrlOrMeta }, // Save
+        { key: "u", when: ctrlOrMeta }, // View Source
+        { key: "p", when: ctrlOrMeta }, // Print
+      ];
+
+      // DevTools shortcuts
+      const devtoolsCombos = [
+        (k === "i" && (e.ctrlKey && e.shiftKey)) || (k === "i" && e.metaKey && e.altKey), // Ctrl+Shift+I / Cmd+Alt+I
+        (k === "c" && (e.ctrlKey && e.shiftKey)), // Ctrl+Shift+C (inspect element)
+        (k === "j" && (e.ctrlKey && e.shiftKey)), // Ctrl+Shift+J (DevTools console)
+      ];
+
+      // Function keys often used for DevTools
+      const functionKeysBlocked = ["f12"].includes(k);
+
+      // Safari Reader Mode shortcut (Cmd+Shift+R) – block best-effort
+      const safariReaderBlocked = (k === "r" && e.metaKey && e.shiftKey);
+
+      let shouldBlock = false;
+      for (const combo of blockedCombos) {
+        if (combo.when && k === combo.key) { shouldBlock = true; break; }
+      }
+      if (devtoolsCombos.some(Boolean) || functionKeysBlocked || safariReaderBlocked) {
+        shouldBlock = true;
+      }
+
+      if (shouldBlock) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    }, { capture: true });
+
+    // Try to discourage DevTools opening by detecting viewport changes (deterrent, not a guarantee)
+    (function devtoolsDeterrent() {
+      let detected = false;
+      function check() {
+        const threshold = 160; // px difference suggests docked DevTools
+        const opened = Math.abs((window.outerWidth - window.innerWidth)) > threshold ||
+                       Math.abs((window.outerHeight - window.innerHeight)) > threshold;
+        if (opened && !detected) {
+          detected = true;
+          // Soft deterrent: blur content and show notice
+          document.body.style.filter = "blur(0px) saturate(0.8)";
+          console.warn("Developer tools detected. Interactions are limited.");
+        } else if (!opened && detected) {
+          detected = false;
+          document.body.style.filter = "none";
+        }
+      }
+      setInterval(check, 800);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          // When tab is hidden (e.g., printing or screenshot tools), blunt deterrent
+          document.body.style.filter = "grayscale(0.6) blur(1px)";
+        } else {
+          document.body.style.filter = "";
+        }
+      });
+    })();
+
+    // Prevent keyboard-based scrolling/selection by arrows/PageUp/PageDown/Home/End when needed
+    document.addEventListener("keydown", e => {
+      const navKeys = ["arrowup","arrowdown","arrowleft","arrowright","home","end","pageup","pagedown"];
+      if (navKeys.includes(e.key.toLowerCase())) {
+        // Optional: restrict keyboard navigation inside protected area
+        // e.preventDefault();
+      }
+    });
+
+    // Prevent image export via programmatic context menu on canvas
+    (function lockCanvasMenu() {
+      const canvas = document.getElementById("protectedCanvas");
+      canvas.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    })();
+
+    // Best-effort: block drag of canvas
+    (function lockCanvasDrag() {
+      const canvas = document.getElementById("protectedCanvas");
+      ["dragstart","drag","drop"].forEach(evt => {
+        canvas.addEventListener(evt, e => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
