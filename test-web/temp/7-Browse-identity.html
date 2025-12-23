@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Raw Browser Identity</title>
+    <style>
+        body { font-family: monospace; background: #121212; color: #00ff41; padding: 20px; line-height: 1.6; }
+        .section { margin-bottom: 30px; border: 1px solid #333; padding: 15px; border-radius: 5px; }
+        h2 { color: #fff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 0; }
+        .label { color: #888; font-weight: bold; }
+        .value { color: #00ff41; word-break: break-all; }
+        .high-entropy { color: #ffca28; } /* Specific color for deeper data */
+    </style>
+</head>
+<body>
+
+    <div class="section">
+        <h2>1. The "Legacy" User-Agent String</h2>
+        <p><span class="label">navigator.userAgent:</span><br>
+           <span class="value" id="ua-string"></span></p>
+    </div>
+
+    <div class="section">
+        <h2>2. Standard Identity Properties</h2>
+        <div><span class="label">Platform:</span> <span class="value" id="platform"></span></div>
+        <div><span class="label">Vendor:</span> <span class="value" id="vendor"></span></div>
+        <div><span class="label">Language:</span> <span class="value" id="lang"></span></div>
+        <div><span class="label">Engine (Product):</span> <span class="value" id="product"></span></div>
+        <div><span class="label">App Version:</span> <span class="value" id="appversion"></span></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Modern Client Hints (JSON)</h2>
+        <p><span class="label">navigator.userAgentData:</span></p>
+        <pre class="value" id="ua-data">Loading Client Hints...</pre>
+    </div>
+
+    <script>
+        // Direct data dump
+        document.getElementById('ua-string').textContent = navigator.userAgent;
+        document.getElementById('platform').textContent = navigator.platform;
+        document.getElementById('vendor').textContent = navigator.vendor || "None reported";
+        document.getElementById('lang').textContent = navigator.language;
+        document.getElementById('product').textContent = navigator.product;
+        document.getElementById('appversion').textContent = navigator.appVersion;
+
+        // Fetching Modern User-Agent Data (Client Hints)
+        if (navigator.userAgentData) {
+            // High Entropy values give "realer" data like exact version and architecture
+            navigator.userAgentData.getHighEntropyValues([
+                "architecture", "model", "platformVersion", "fullVersionList", "bitness"
+            ]).then(data => {
+                document.getElementById('ua-data').textContent = JSON.stringify(data, null, 4);
+            });
+        } else {
+            document.getElementById('ua-data').textContent = "Not supported by this browser (Common in Safari/Firefox).";
+        }
+    </script>
+</body>
+</html>
