@@ -1,29 +1,129 @@
 <!DOCTYPE html>
-<html>
-<body>
-    <h2>MEGA Link Inspector</h2>
-    <input type="text" id="megaUrl" placeholder="Paste MEGA URL here" style="width: 300px;">
-    <button onclick="checkLink()">Inspect</button>
-    
-    <div id="result" style="margin-top: 20px; font-weight: bold;"></div>
-
-    <script>
-        async function checkLink() {
-            const url = document.getElementById('megaUrl').value;
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerText = "Checking...";
-
-            const response = await fetch(`http://localhost:3000/check?url=${encodeURIComponent(url)}`);
-            const data = await response.json();
-
-            if (data.status === 'active') {
-                resultDiv.style.color = "green";
-                resultDiv.innerText = `✅ Active: ${data.name} (${(data.size / 1024 / 1024).toFixed(2)} MB)`;
-            } else {
-                resultDiv.style.color = "red";
-                resultDiv.innerText = "❌ Dead: This link has been removed or is incorrect.";
-            }
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEGA Link Inspector</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
         }
-    </script>
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h2 { color: #d93025; margin-bottom: 1.5rem; }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #d93025;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover { background-color: #b3261e; }
+        #result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+        }
+        .loading { color: #666; font-style: italic; }
+        .active { background-color: #e6ffed; color: #22863a; border: 1px solid #34d058; }
+        .dead { background-color: #ffeef0; color: #cb2431; border: 1px solid #f97583; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>MEGA Link Inspector</h2>
+    <p>Check if a link is still active or deleted.</p>
+    
+    <input type="text" id="urlInput" placeholder="https://mega.nz/file/..." />
+    <button onclick="inspectLink()">Inspect Link</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    async function inspectLink() {
+        const urlInput = document.getElementById('urlInput').value;
+        const resultDiv = document.getElementById('result');
+        
+        if (!urlInput.includes("mega.nz")) {
+            alert("Please enter a valid MEGA URL");
+            return;
+        }
+
+        // 1. Extract File ID from URL
+        // Format: https://mega.nz/file/FILE_ID#KEY or /folder/ID#KEY
+        const regex = /\/(file|folder)\/([a-zA-Z0-9_-]+)/;
+        const match = urlInput.match(regex);
+        
+        if (!match) {
+            alert("Could not parse MEGA Link ID");
+            return;
+        }
+
+        const type = match[1]; // file or folder
+        const id = match[2];
+
+        resultDiv.style.display = "block";
+        resultDiv.className = "loading";
+        resultDiv.innerText = "Checking MEGA servers...";
+
+        // 2. Prepare the Request
+        // We use a CORS proxy to avoid being blocked by the browser
+        const proxyUrl = "https://corsproxy.io/?";
+        const megaApi = "https://g.api.mega.co.nz/cs?id=0";
+        
+        // Command for MEGA API: 'g' gets info, 'p' is the public ID
+        const payload = [{ "a": "g", "g": 1, "p": id }];
+
+        try {
+            const response = await fetch(proxyUrl + encodeURIComponent(megaApi), {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            const resCode = data[0];
+
+            // MEGA returns a negative number if there is an error
+            // -2 means ENOENT (Object not found / Deleted)
+            if (typeof resCode === 'number' && resCode < 0) {
+                resultDiv.className = "dead";
+                resultDiv.innerText = "❌ LINK DEAD: This file has been removed or the link is invalid.";
+            } else {
+                resultDiv.className = "active";
+                resultDiv.innerText = "✅ LINK ACTIVE: The content is still available on MEGA.";
+            }
+        } catch (error) {
+            resultDiv.className = "dead";
+            resultDiv.innerText = "⚠️ Error: Could not connect to checking service.";
+            console.error(error);
+        }
+    }
+</script>
+
 </body>
 </html>
