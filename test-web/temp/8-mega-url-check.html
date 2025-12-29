@@ -3,126 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MEGA Link Inspector</title>
+    <title>MEGA Link Inspector v2</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: center;
-            padding-top: 50px;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-        }
-        h2 { color: #d93025; margin-bottom: 1.5rem; }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #d93025;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-        }
-        button:hover { background-color: #b3261e; }
-        #result {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 6px;
-            display: none;
-        }
-        .loading { color: #666; font-style: italic; }
-        .active { background-color: #e6ffed; color: #22863a; border: 1px solid #34d058; }
-        .dead { background-color: #ffeef0; color: #cb2431; border: 1px solid #f97583; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 450px; }
+        h2 { color: #cc0000; margin-top: 0; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #cc0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #ccc; }
+        #status { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; font-weight: bold; text-align: center; }
+        .active { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .dead { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        #debug { font-size: 11px; color: #888; margin-top: 20px; white-space: pre-wrap; word-break: break-all; }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
     <h2>MEGA Link Inspector</h2>
-    <p>Check if a link is still active or deleted.</p>
-    
-    <input type="text" id="urlInput" placeholder="https://mega.nz/file/..." />
-    <button onclick="inspectLink()">Inspect Link</button>
-
-    <div id="result"></div>
+    <input type="text" id="megaUrl" placeholder="Paste link (e.g., https://mega.nz/file/...)">
+    <button id="btn" onclick="checkLink()">Check Status</button>
+    <div id="status"></div>
+    <div id="debug"></div>
 </div>
 
 <script>
-    async function inspectLink() {
-        const urlInput = document.getElementById('urlInput').value;
-        const resultDiv = document.getElementById('result');
-        
-        if (!urlInput.includes("mega.nz")) {
-            alert("Please enter a valid MEGA URL");
-            return;
-        }
+async function checkLink() {
+    const url = document.getElementById('megaUrl').value;
+    const statusDiv = document.getElementById('status');
+    const debugDiv = document.getElementById('debug');
+    const btn = document.getElementById('btn');
 
-        // 1. Extract File ID from URL
-        // Format: https://mega.nz/file/FILE_ID#KEY or /folder/ID#KEY
-        const regex = /\/(file|folder)\/([a-zA-Z0-9_-]+)/;
-        const match = urlInput.match(regex);
-        
-        if (!match) {
-            alert("Could not parse MEGA Link ID");
-            return;
-        }
-
-        const type = match[1]; // file or folder
-        const id = match[2];
-
-        resultDiv.style.display = "block";
-        resultDiv.className = "loading";
-        resultDiv.innerText = "Checking MEGA servers...";
-
-        // 2. Prepare the Request
-        // We use a CORS proxy to avoid being blocked by the browser
-        const proxyUrl = "https://corsproxy.io/?";
-        const megaApi = "https://g.api.mega.co.nz/cs?id=0";
-        
-        // Command for MEGA API: 'g' gets info, 'p' is the public ID
-        const payload = [{ "a": "g", "g": 1, "p": id }];
-
-        try {
-            const response = await fetch(proxyUrl + encodeURIComponent(megaApi), {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-            const resCode = data[0];
-
-            // MEGA returns a negative number if there is an error
-            // -2 means ENOENT (Object not found / Deleted)
-            if (typeof resCode === 'number' && resCode < 0) {
-                resultDiv.className = "dead";
-                resultDiv.innerText = "❌ LINK DEAD: This file has been removed or the link is invalid.";
-            } else {
-                resultDiv.className = "active";
-                resultDiv.innerText = "✅ LINK ACTIVE: The content is still available on MEGA.";
-            }
-        } catch (error) {
-            resultDiv.className = "dead";
-            resultDiv.innerText = "⚠️ Error: Could not connect to checking service.";
-            console.error(error);
-        }
+    // Reset UI
+    statusDiv.style.display = "none";
+    debugDiv.innerText = "";
+    
+    // Extract ID
+    const match = url.match(/\/(file|folder)\/([a-zA-Z0-9_-]+)/);
+    if (!match) {
+        alert("Invalid MEGA URL format.");
+        return;
     }
+    const id = match[2];
+
+    btn.disabled = true;
+    statusDiv.style.display = "block";
+    statusDiv.className = "";
+    statusDiv.innerText = "Connecting to MEGA...";
+
+    try {
+        // Use AllOrigins proxy - it's generally more stable
+        const apiTarget = `https://g.api.mega.co.nz/cs?id=0`;
+        const payload = [{"a": "g", "g": 1, "p": id}];
+        
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiTarget + "&data=" + JSON.stringify(payload))}`;
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("Proxy server error");
+
+        const wrapper = await response.json();
+        // AllOrigins wraps the response in a 'contents' string
+        const data = JSON.parse(wrapper.contents);
+        
+        debugDiv.innerText = "API Response: " + JSON.stringify(data);
+
+        // MEGA logic: if result is a number < 0, it's an error
+        if (Array.isArray(data) && typeof data[0] === 'object') {
+            statusDiv.className = "active";
+            statusDiv.innerText = "✅ LINK ALIVE";
+        } else if (data[0] === -2 || data === -2) {
+            statusDiv.className = "dead";
+            statusDiv.innerText = "❌ LINK DEAD (Deleted or Invalid)";
+        } else {
+            statusDiv.className = "dead";
+            statusDiv.innerText = "❓ UNKNOWN STATUS (Code: " + data[0] + ")";
+        }
+
+    } catch (err) {
+        statusDiv.className = "dead";
+        statusDiv.innerText = "⚠️ PROXY ERROR";
+        debugDiv.innerText = "Error details: " + err.message;
+    } finally {
+        btn.disabled = false;
+    }
+}
 </script>
 
 </body>
