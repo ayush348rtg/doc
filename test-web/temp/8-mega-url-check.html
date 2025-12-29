@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>MEGA Link Inspector</h2>
+    <input type="text" id="megaUrl" placeholder="Paste MEGA URL here" style="width: 300px;">
+    <button onclick="checkLink()">Inspect</button>
+    
+    <div id="result" style="margin-top: 20px; font-weight: bold;"></div>
+
+    <script>
+        async function checkLink() {
+            const url = document.getElementById('megaUrl').value;
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerText = "Checking...";
+
+            const response = await fetch(`http://localhost:3000/check?url=${encodeURIComponent(url)}`);
+            const data = await response.json();
+
+            if (data.status === 'active') {
+                resultDiv.style.color = "green";
+                resultDiv.innerText = `✅ Active: ${data.name} (${(data.size / 1024 / 1024).toFixed(2)} MB)`;
+            } else {
+                resultDiv.style.color = "red";
+                resultDiv.innerText = "❌ Dead: This link has been removed or is incorrect.";
+            }
+        }
+    </script>
+</body>
+</html>
